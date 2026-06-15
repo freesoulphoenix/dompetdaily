@@ -40,7 +40,7 @@ function getStoragePathFromUrl(url) {
     return '';
   }
 
-  return decodeURIComponent(url.slice(markerIndex + marker.length));
+  return decodeURIComponent(url.slice(markerIndex + marker.length).split('?')[0]);
 }
 
 async function uploadReceiptFile(client, userProfileId, file) {
@@ -58,13 +58,17 @@ async function uploadReceiptFile(client, userProfileId, file) {
   }
 
   const { data } = client.storage.from(RECEIPT_BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+  return {
+    path,
+    publicUrl: data.publicUrl
+  };
 }
 
-function normalizeReceipt(receipt, userProfileId, imageUrl) {
+function normalizeReceipt(receipt, userProfileId, uploadedFile) {
   return {
     user_profile_id: userProfileId,
-    image_url: imageUrl,
+    image_url: uploadedFile.publicUrl,
+    file_storage_path: uploadedFile.path,
     merchant_name: receipt.merchant_name || null,
     receipt_date: receipt.receipt_date || null,
     total_amount: Number(receipt.total_amount || 0),
@@ -133,10 +137,10 @@ export async function createReceipt(receipt) {
     throw new Error('Choose a receipt file first.');
   }
 
-  const imageUrl = await uploadReceiptFile(client, userProfileId, receipt.file);
+  const uploadedFile = await uploadReceiptFile(client, userProfileId, receipt.file);
   const { data, error } = await client
     .from('receipts')
-    .insert(normalizeReceipt(receipt, userProfileId, imageUrl))
+    .insert(normalizeReceipt(receipt, userProfileId, uploadedFile))
     .select('*')
     .single();
 
@@ -242,7 +246,7 @@ export async function deleteReceipt(id) {
   const { client, userProfileId } = await getScopedClient();
   const { data: receipt, error: fetchError } = await client
     .from('receipts')
-    .select('image_url')
+    .select('image_url, file_storage_path')
     .eq('id', id)
     .eq('user_profile_id', userProfileId)
     .single();
@@ -261,7 +265,7 @@ export async function deleteReceipt(id) {
     throw error;
   }
 
-  const storagePath = getStoragePathFromUrl(receipt.image_url);
+  const storagePath = receipt.file_storage_path || getStoragePathFromUrl(receipt.image_url);
 
   if (storagePath) {
     await client.storage.from(RECEIPT_BUCKET).remove([storagePath]);

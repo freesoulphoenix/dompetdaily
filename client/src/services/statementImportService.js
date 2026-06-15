@@ -42,7 +42,10 @@ async function uploadStatementFile(client, userProfileId, file) {
   }
 
   const { data } = client.storage.from(STATEMENT_BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+  return {
+    path,
+    publicUrl: data.publicUrl
+  };
 }
 
 export async function getStatementImports() {
@@ -67,7 +70,7 @@ export async function createStatementImport(file, bankName = '') {
     throw new Error('Choose a statement file first.');
   }
 
-  const fileUrl = await uploadStatementFile(client, userProfileId, file);
+  const uploadedFile = await uploadStatementFile(client, userProfileId, file);
   const { data, error } = await client
     .from('statement_imports')
     .insert({
@@ -75,7 +78,8 @@ export async function createStatementImport(file, bankName = '') {
       bank_name: bankName || null,
       file_name: file.name,
       file_type: getFileExtension(file),
-      file_url: fileUrl,
+      file_url: uploadedFile.publicUrl,
+      file_storage_path: uploadedFile.path,
       import_status: 'uploaded'
     })
     .select('*')

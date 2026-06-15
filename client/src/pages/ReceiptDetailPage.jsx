@@ -30,6 +30,8 @@ export default function ReceiptDetailPage({
   const [imageFailed, setImageFailed] = useState(false);
   const [error, setError] = useState('');
   const categoryOptions = useMemo(() => getCategoryOptions(categories), [categories]);
+  const fileExpired = Boolean(receipt.file_deleted_at);
+  const canPreviewFile = Boolean(receipt.image_url && !fileExpired);
 
   function updateField(field, value) {
     setForm((currentForm) => ({
@@ -94,7 +96,7 @@ export default function ReceiptDetailPage({
           <h1>{receipt.merchant_name || 'Untitled Receipt'}</h1>
         </div>
         <div className="button-row">
-          <button className="secondary-button" disabled={processing} onClick={handleRunOcr}>
+          <button className="secondary-button" disabled={processing || !canPreviewFile} onClick={handleRunOcr}>
             {processing ? 'Processing...' : 'Run OCR'}
           </button>
           <button className="secondary-button" onClick={onBack}>Back to Receipts</button>
@@ -105,7 +107,7 @@ export default function ReceiptDetailPage({
 
       <section className="receipt-detail-grid">
         <article className="panel">
-          {receipt.image_url && !imageFailed ? (
+          {canPreviewFile && !imageFailed ? (
             <img
               alt={receipt.merchant_name || 'Receipt preview'}
               className="receipt-preview-image"
@@ -114,8 +116,12 @@ export default function ReceiptDetailPage({
             />
           ) : (
             <div className="receipt-detail-fallback">
-              <strong>Preview unavailable</strong>
-              <span>This receipt image cannot be displayed by the browser. If this was a HEIC upload, delete it and upload it again so Dompet Daily can convert it to JPEG first.</span>
+              <strong>{fileExpired ? 'Receipt file expired' : 'Preview unavailable'}</strong>
+              <span>
+                {fileExpired
+                  ? 'The uploaded file was removed after the 90-day retention window. The receipt entry and report data remain available.'
+                  : 'This receipt image cannot be displayed by the browser. If this was a HEIC upload, delete it and upload it again so Dompet Daily can convert it to JPEG first.'}
+              </span>
             </div>
           )}
         </article>

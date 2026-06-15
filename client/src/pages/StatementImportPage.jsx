@@ -30,6 +30,30 @@ function isRowImportable(row) {
   return Boolean(row.amount && row.transaction_date && row.transaction_type && row.account_id);
 }
 
+function formatRetentionDate(value) {
+  if (!value) {
+    return '';
+  }
+
+  return new Intl.DateTimeFormat('en', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  }).format(new Date(value));
+}
+
+function getFileRetentionText(item) {
+  if (item.file_deleted_at) {
+    return 'File expired - imported data retained';
+  }
+
+  if (item.file_retention_expires_at) {
+    return `File kept until ${formatRetentionDate(item.file_retention_expires_at)}`;
+  }
+
+  return '';
+}
+
 export default function StatementImportPage() {
   const [imports, setImports] = useState([]);
   const [previewRows, setPreviewRows] = useState([]);
@@ -704,20 +728,25 @@ export default function StatementImportPage() {
           <p className="muted-copy">No statement files uploaded yet.</p>
         ) : (
           <div className="statement-import-list">
-            {imports.map((item) => (
-              <div className="statement-import-row" key={item.id}>
-                <div>
-                  <strong>{item.file_name}</strong>
-                  <span>{item.bank_name || 'Source'} - {item.file_type.toUpperCase()} - {item.import_status}</span>
+            {imports.map((item) => {
+              const retentionText = getFileRetentionText(item);
+
+              return (
+                <div className="statement-import-row" key={item.id}>
+                  <div>
+                    <strong>{item.file_name}</strong>
+                    <span>{item.bank_name || 'Source'} - {item.file_type.toUpperCase()} - {item.import_status}</span>
+                    {retentionText && <span className="file-retention-status">{retentionText}</span>}
+                  </div>
+                  <div className="receipt-actions">
+                    <button className="text-button" onClick={() => openImportPreview(item)}>Preview</button>
+                    {item.file_url && !item.file_deleted_at && (
+                      <a className="text-button" href={item.file_url} rel="noreferrer" target="_blank">Open</a>
+                    )}
+                  </div>
                 </div>
-                <div className="receipt-actions">
-                  <button className="text-button" onClick={() => openImportPreview(item)}>Preview</button>
-                  {item.file_url && (
-                    <a className="text-button" href={item.file_url} rel="noreferrer" target="_blank">Open</a>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </article>

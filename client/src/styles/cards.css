@@ -239,6 +239,13 @@
   font-size: 0.82rem;
 }
 
+.receipt-card-body .file-retention-status,
+.statement-import-row .file-retention-status {
+  color: var(--color-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
 .receipt-actions {
   display: flex;
   justify-content: flex-end;

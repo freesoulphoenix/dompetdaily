@@ -33,6 +33,34 @@ function isPdfReceiptUrl(url) {
   return /\.pdf($|\?)/i.test(url || '');
 }
 
+function isStoredFileAvailable(item) {
+  return Boolean(item.image_url && !item.file_deleted_at);
+}
+
+function formatRetentionDate(value) {
+  if (!value) {
+    return '';
+  }
+
+  return new Intl.DateTimeFormat('en', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  }).format(new Date(value));
+}
+
+function getReceiptRetentionText(receipt) {
+  if (receipt.file_deleted_at) {
+    return 'File expired - entry retained';
+  }
+
+  if (receipt.file_retention_expires_at) {
+    return `File kept until ${formatRetentionDate(receipt.file_retention_expires_at)}`;
+  }
+
+  return '';
+}
+
 export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed }) {
   const receiptInputRef = useRef(null);
   const [receipts, setReceipts] = useState([]);
@@ -402,28 +430,36 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
       )}
 
       <section className="receipt-grid">
-        {receipts.map((receipt) => (
-          <article className="receipt-card" key={receipt.id}>
-            <button className="receipt-image-button" onClick={() => openReceiptDetail(receipt)}>
-              {isPdfReceiptUrl(receipt.image_url) ? (
-                <span>PDF receipt</span>
-              ) : receipt.image_url ? (
-                <img alt={receipt.merchant_name || 'Receipt'} src={receipt.image_url} />
-              ) : (
-                <span>No image</span>
-              )}
-            </button>
-            <div className="receipt-card-body">
-              <strong>{receipt.merchant_name || 'Untitled Receipt'}</strong>
-              <span>{receipt.receipt_date || 'No date'} - {receipt.processing_status || 'pending'}</span>
-              <span>{formatCurrency(receipt.total_amount || 0)}</span>
-            </div>
-            <div className="receipt-actions">
-              <button className="text-button" onClick={() => openReceiptDetail(receipt)}>View</button>
-              <button className="text-button danger" onClick={() => handleDelete(receipt)}>Delete</button>
-            </div>
-          </article>
-        ))}
+        {receipts.map((receipt) => {
+          const fileAvailable = isStoredFileAvailable(receipt);
+          const retentionText = getReceiptRetentionText(receipt);
+
+          return (
+            <article className="receipt-card" key={receipt.id}>
+              <button className="receipt-image-button" onClick={() => openReceiptDetail(receipt)}>
+                {fileAvailable && isPdfReceiptUrl(receipt.image_url) ? (
+                  <span>PDF receipt</span>
+                ) : fileAvailable ? (
+                  <img alt={receipt.merchant_name || 'Receipt'} src={receipt.image_url} />
+                ) : receipt.file_deleted_at ? (
+                  <span>File expired</span>
+                ) : (
+                  <span>No image</span>
+                )}
+              </button>
+              <div className="receipt-card-body">
+                <strong>{receipt.merchant_name || 'Untitled Receipt'}</strong>
+                <span>{receipt.receipt_date || 'No date'} - {receipt.processing_status || 'pending'}</span>
+                <span>{formatCurrency(receipt.total_amount || 0)}</span>
+                {retentionText && <span className="file-retention-status">{retentionText}</span>}
+              </div>
+              <div className="receipt-actions">
+                <button className="text-button" onClick={() => openReceiptDetail(receipt)}>View</button>
+                <button className="text-button danger" onClick={() => handleDelete(receipt)}>Delete</button>
+              </div>
+            </article>
+          );
+        })}
       </section>
     </div>
   );
