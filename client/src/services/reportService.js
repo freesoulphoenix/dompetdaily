@@ -130,22 +130,3 @@ export async function getReportData(filters = {}) {
     projectTags
   };
 }
-
-export function toReportCsv(reportData) {
-  const rows = [
-    ['Date', 'Type', 'Description', 'Account', 'Category', 'Project Tag', 'Amount'],
-    ...reportData.filteredTransactions.map((transaction) => [
-      transaction.transaction_date,
-      transaction.transaction_type,
-      transaction.description || '',
-      transaction.accounts?.name || '',
-      transaction.categories?.name || '',
-      transaction.project_tags?.name || '',
-      transaction.amount || 0
-    ])
-  ];
-
-  return rows
-    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    .join('\n');
-}

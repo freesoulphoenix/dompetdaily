@@ -279,14 +279,6 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
           </div>
         </article>
 
-        <article className="panel">
-          <h2>Backup</h2>
-          <p className="muted-copy">Export and import controls will connect to Dompet Daily data services later.</p>
-          <div className="button-row">
-            <button className="secondary-button">Export</button>
-            <button className="secondary-button">Import</button>
-          </div>
-        </article>
       </section>
     </div>
   );

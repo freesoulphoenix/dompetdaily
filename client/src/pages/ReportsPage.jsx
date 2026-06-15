@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getReportData, toReportCsv } from '../services/reportService.js';
+import { getReportData } from '../services/reportService.js';
 import { getCategoryOptions } from '../utils/categoryOptions.js';
 import { formatCurrency, formatShortCurrency } from '../utils/format.js';
 
@@ -10,16 +10,6 @@ const emptyFilters = {
   projectTagId: '',
   startDate: ''
 };
-
-function downloadFile(fileName, content, type) {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  link.click();
-  URL.revokeObjectURL(url);
-}
 
 function BreakdownList({ items }) {
   const max = Math.max(...items.map((item) => item.value), 1);
@@ -112,12 +102,26 @@ export default function ReportsPage() {
     loadReports(emptyFilters);
   }
 
-  function exportCsv() {
+  async function exportSpreadsheet() {
     if (!reportData) {
       return;
     }
 
-    downloadFile('dompetdaily-report.csv', toReportCsv(reportData), 'text/csv;charset=utf-8');
+    const XLSX = await import('xlsx');
+    const worksheetRows = rows.map((transaction) => ({
+      Date: transaction.transaction_date || '',
+      Type: transaction.transaction_type || '',
+      Description: transaction.description || '',
+      Account: transaction.accounts?.name || '',
+      Category: transaction.categories?.name || '',
+      'Project Tag': transaction.project_tags?.name || '',
+      Amount: Number(transaction.amount || 0)
+    }));
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(worksheetRows);
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Transactions');
+    XLSX.writeFile(workbook, 'dompetdaily-report.xlsx');
   }
 
   function exportPdf() {
@@ -181,7 +185,7 @@ export default function ReportsPage() {
           <h1>Reports</h1>
         </div>
         <div className="button-row">
-          <button className="secondary-button" onClick={exportCsv}>Export CSV</button>
+          <button className="secondary-button" onClick={exportSpreadsheet}>Export Excel</button>
           <button className="secondary-button" onClick={exportPdf}>Export PDF</button>
         </div>
       </section>
