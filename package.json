@@ -12,5 +12,8 @@
   "workspaces": [
     "client",
     "server"
-  ]
+  ],
+  "devDependencies": {
+    "supabase": "^2.106.0"
+  }
 }
