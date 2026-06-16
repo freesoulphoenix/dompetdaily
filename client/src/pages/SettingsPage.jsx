@@ -37,7 +37,7 @@ function FlatIcon({ name }) {
   }
 
   if (name === 'grip') {
-    return <svg {...commonProps}><path d="M8 6h.01" /><path d="M8 12h.01" /><path d="M8 18h.01" /><path d="M16 6h.01" /><path d="M16 12h.01" /><path d="M16 18h.01" /></svg>;
+    return <svg {...commonProps}><path d="M7 8h10" /><path d="M7 12h10" /><path d="M7 16h10" /></svg>;
   }
 
   if (name === 'minus') {
