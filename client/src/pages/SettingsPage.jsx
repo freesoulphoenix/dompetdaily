@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext.jsx';
-import { createCategory, deleteCategory, getCategories, updateCategory } from '../services/categoryService.js';
+import { createCategory, deleteCategory, getCategories, updateCategory, updateCategoryOrder } from '../services/categoryService.js';
 
 const emptyCategoryForm = {
   id: null,
@@ -52,6 +52,14 @@ function FlatIcon({ name }) {
     return <svg {...commonProps}><circle cx="12" cy="12" r="8" /><path d="M12 8v8" /><path d="M8 12h8" /></svg>;
   }
 
+  if (name === 'up') {
+    return <svg {...commonProps}><path d="m6 15 6-6 6 6" /></svg>;
+  }
+
+  if (name === 'down') {
+    return <svg {...commonProps}><path d="m6 9 6 6 6-6" /></svg>;
+  }
+
   if (name === 'user') {
     return <svg {...commonProps}><circle cx="12" cy="8" r="4" /><path d="M5 21a7 7 0 0 1 14 0" /></svg>;
   }
@@ -86,9 +94,20 @@ function groupCategories(categories) {
     parents.push(category);
   });
 
-  parents.sort((a, b) => `${a.type}${a.name}`.localeCompare(`${b.type}${b.name}`));
+  function compareCategory(a, b) {
+    const aOrder = Number.isFinite(a.sort_order) ? a.sort_order : Number.MAX_SAFE_INTEGER;
+    const bOrder = Number.isFinite(b.sort_order) ? b.sort_order : Number.MAX_SAFE_INTEGER;
+
+    if (aOrder !== bOrder) {
+      return aOrder - bOrder;
+    }
+
+    return `${a.type}${a.name}`.localeCompare(`${b.type}${b.name}`);
+  }
+
+  parents.sort(compareCategory);
   childrenByParentId.forEach((children) => {
-    children.sort((a, b) => a.name.localeCompare(b.name));
+    children.sort(compareCategory);
   });
 
   return { childrenByParentId, parents };
@@ -106,6 +125,8 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
   const [showSubcategories, setShowSubcategories] = useState(true);
   const [isCategoryFormOpen, setIsCategoryFormOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState('');
+  const [activeSortId, setActiveSortId] = useState('');
+  const [isSortingCategory, setIsSortingCategory] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteError, setDeleteError] = useState('');
@@ -183,6 +204,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
       resetCategoryForm();
       await loadCategories();
       setPendingDeleteId('');
+      setActiveSortId('');
     } catch (error) {
       setCategoryError(error.message);
     } finally {
@@ -208,6 +230,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
       await loadCategories();
       setCategoryMessage('Category deleted.');
       setPendingDeleteId('');
+      setActiveSortId('');
       if (selectedParentId === category.id) {
         setSelectedParentId('');
         setSettingsView('manager');
@@ -223,6 +246,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
     setCategoryMessage('');
     setCategoryError('');
     setPendingDeleteId('');
+    setActiveSortId('');
     resetCategoryForm();
   }
 
@@ -232,6 +256,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
     setCategoryMessage('');
     setCategoryError('');
     setPendingDeleteId('');
+    setActiveSortId('');
     resetCategoryForm();
   }
 
@@ -239,6 +264,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
     setSelectedParentId(category.id);
     setSettingsView('children');
     setPendingDeleteId('');
+    setActiveSortId('');
     setCategoryMessage('');
     setCategoryError('');
     resetCategoryForm();
@@ -260,6 +286,33 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
 
   function getCategoryLabel(category) {
     return `${category.type === 'income' ? 'Income' : 'Expense'} : ${category.name}`;
+  }
+
+  async function moveCategory(category, direction, rows) {
+    const currentIndex = rows.findIndex((item) => item.id === category.id);
+    const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= rows.length) {
+      return;
+    }
+
+    const reordered = [...rows];
+    const [moved] = reordered.splice(currentIndex, 1);
+    reordered.splice(nextIndex, 0, moved);
+
+    setCategoryMessage('');
+    setCategoryError('');
+    setIsSortingCategory(true);
+
+    try {
+      await updateCategoryOrder(reordered);
+      await loadCategories();
+      setActiveSortId(category.id);
+    } catch (error) {
+      setCategoryError(error.message);
+    } finally {
+      setIsSortingCategory(false);
+    }
   }
 
   function renderDeleteButton(category) {
@@ -389,7 +442,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
               <p className="muted-copy category-empty-copy">No categories yet.</p>
             )}
 
-            {rows.map((category) => {
+            {rows.map((category, index) => {
               const children = childrenByParentId.get(category.id) || [];
               const preview = children.map((child) => child.name).join(', ');
 
@@ -413,7 +466,36 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
                     >
                       <FlatIcon name="edit" />
                     </button>
-                    <span className="category-grip" aria-hidden="true"><FlatIcon name="grip" /></span>
+                    <button
+                      aria-label={`Sort ${category.name}`}
+                      className="category-icon-button"
+                      onClick={() => setActiveSortId((current) => (current === category.id ? '' : category.id))}
+                      type="button"
+                    >
+                      <FlatIcon name="grip" />
+                    </button>
+                    {activeSortId === category.id && (
+                      <span className="category-sort-controls">
+                        <button
+                          aria-label={`Move ${category.name} up`}
+                          className="category-icon-button"
+                          disabled={index === 0 || isSortingCategory}
+                          onClick={() => moveCategory(category, 'up', rows)}
+                          type="button"
+                        >
+                          <FlatIcon name="up" />
+                        </button>
+                        <button
+                          aria-label={`Move ${category.name} down`}
+                          className="category-icon-button"
+                          disabled={index === rows.length - 1 || isSortingCategory}
+                          onClick={() => moveCategory(category, 'down', rows)}
+                          type="button"
+                        >
+                          <FlatIcon name="down" />
+                        </button>
+                      </span>
+                    )}
                   </div>
                 </div>
               );

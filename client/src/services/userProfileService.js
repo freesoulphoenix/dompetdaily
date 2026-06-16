@@ -25,6 +25,11 @@ const defaultProjectTags = [
   'Other'
 ];
 
+const defaultParentOrder = new Map(defaultCategoryTree.map((category, index) => [category.name, index + 1]));
+const defaultChildOrder = new Map(defaultCategoryTree.flatMap((parent) => (
+  parent.children.map((childName, index) => [`${parent.name}:${childName}`, index + 1])
+)));
+
 let cachedProfile = null;
 
 function requireSupabase() {
@@ -87,11 +92,12 @@ async function seedUserDefaults(client, userProfileId) {
 
   const { error: parentCategoryError } = await client
     .from('categories')
-    .upsert(defaultCategoryTree.map((category) => ({
+    .upsert(defaultCategoryTree.map((category, index) => ({
       user_profile_id: userProfileId,
       name: category.name,
       type: 'expense',
-      parent_category_id: null
+      parent_category_id: null,
+      sort_order: index + 1
     })), {
       ignoreDuplicates: true,
       onConflict: 'user_profile_id,name,type'
@@ -115,11 +121,12 @@ async function seedUserDefaults(client, userProfileId) {
   const parentIdByName = new Map(parentCategories.map((category) => [category.name, category.id]));
   const childCategories = defaultCategoryTree.flatMap((parent) => (
     parent.children
-      .map((name) => ({
+      .map((name, index) => ({
         user_profile_id: userProfileId,
         name,
         type: 'expense',
-        parent_category_id: parentIdByName.get(parent.name)
+        parent_category_id: parentIdByName.get(parent.name),
+        sort_order: index + 1
       }))
       .filter((category) => category.parent_category_id)
   ));
@@ -161,6 +168,58 @@ async function seedUserDefaults(client, userProfileId) {
     if (error) {
       throw error;
     }
+  }
+
+  await normalizeCategorySortOrder(client, userProfileId);
+}
+
+async function normalizeCategorySortOrder(client, userProfileId) {
+  const { data: categories, error } = await client
+    .from('categories')
+    .select('id, name, type, parent_category_id, sort_order')
+    .eq('user_profile_id', userProfileId)
+    .order('name', { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  const parentNameById = new Map(
+    (categories || [])
+      .filter((category) => !category.parent_category_id)
+      .map((category) => [category.id, category.name])
+  );
+
+  const updates = (categories || [])
+    .map((category, index) => {
+      const parentName = parentNameById.get(category.parent_category_id);
+      const defaultOrder = parentName
+        ? defaultChildOrder.get(`${parentName}:${category.name}`)
+        : defaultParentOrder.get(category.name);
+      const nextSortOrder = defaultOrder || index + 1;
+
+      return {
+        ...category,
+        nextSortOrder
+      };
+    })
+    .filter((category) => !category.sort_order || category.sort_order === 0);
+
+  if (!updates.length) {
+    return;
+  }
+
+  const results = await Promise.all(updates.map((category) => (
+    client
+      .from('categories')
+      .update({ sort_order: category.nextSortOrder })
+      .eq('id', category.id)
+  )));
+
+  const failed = results.find((result) => result.error);
+
+  if (failed?.error) {
+    throw failed.error;
   }
 }
 

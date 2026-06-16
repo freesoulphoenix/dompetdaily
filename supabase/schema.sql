@@ -27,6 +27,7 @@ create table if not exists public.categories (
   parent_category_id uuid references public.categories(id) on delete cascade,
   name text not null,
   type text default 'expense',
+  sort_order integer default 0,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -92,6 +93,9 @@ on public.categories (user_profile_id);
 
 create index if not exists categories_parent_category_id_idx
 on public.categories (parent_category_id);
+
+create index if not exists categories_sort_order_idx
+on public.categories (user_profile_id, type, parent_category_id, sort_order);
 
 create index if not exists project_tags_user_profile_id_idx
 on public.project_tags (user_profile_id);
