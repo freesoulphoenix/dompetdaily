@@ -492,10 +492,20 @@ textarea:focus {
   padding: 7px 0;
   background: #ffffff;
   transition: transform 0.18s ease;
+  will-change: transform;
 }
 
 .category-flat-row.reveal-delete .category-row-slide {
   transform: translateX(-76px);
+}
+
+.category-flat-row.is-dragging {
+  z-index: 3;
+  opacity: 0.48;
+}
+
+.category-flat-row.is-dragging .category-row-slide {
+  box-shadow: 0 8px 22px rgba(15, 39, 71, 0.12);
 }
 
 .category-delete-reveal {
@@ -509,6 +519,7 @@ textarea:focus {
   background: var(--color-danger);
   font-size: 0.78rem;
   font-weight: 900;
+  transition: transform 0.18s ease;
 }
 
 .category-minus-button,
@@ -523,11 +534,28 @@ textarea:focus {
 }
 
 .category-minus-button {
+  display: none;
   color: var(--color-danger);
 }
 
 .category-icon-button {
   color: var(--color-muted);
+}
+
+.category-flat-list.is-editing .category-minus-button,
+.category-flat-list.is-editing .category-drag-handle {
+  display: grid;
+}
+
+.category-drag-handle {
+  display: none;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.category-drag-handle:active {
+  cursor: grabbing;
 }
 
 .category-icon-button.danger {
@@ -578,14 +606,6 @@ textarea:focus {
 .category-icon-button:disabled {
   cursor: not-allowed;
   opacity: 0.35;
-}
-
-.category-sort-controls {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding-left: 2px;
-  border-left: 1px solid var(--color-border);
 }
 
 .category-empty-copy {

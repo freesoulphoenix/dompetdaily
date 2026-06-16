@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext.jsx';
 import { createCategory, deleteCategory, getCategories, updateCategory, updateCategoryOrder } from '../services/categoryService.js';
 
@@ -125,7 +125,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
   const [showSubcategories, setShowSubcategories] = useState(true);
   const [isCategoryFormOpen, setIsCategoryFormOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState('');
-  const [activeSortId, setActiveSortId] = useState('');
+  const [draggingCategoryId, setDraggingCategoryId] = useState('');
   const [isSortingCategory, setIsSortingCategory] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
@@ -133,6 +133,8 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const { childrenByParentId, parents } = useMemo(() => groupCategories(categories), [categories]);
+  const dragRowsRef = useRef([]);
+  const dragCategoryIdRef = useRef('');
   const selectedParent = useMemo(() => (
     parents.find((category) => category.id === selectedParentId) || null
   ), [parents, selectedParentId]);
@@ -145,6 +147,29 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
   useEffect(() => {
     loadCategories();
   }, []);
+
+  useEffect(() => {
+    if (!pendingDeleteId) {
+      return undefined;
+    }
+
+    function handlePointerDown(event) {
+      if (
+        event.target.closest('.category-minus-button')
+        || event.target.closest('.category-delete-reveal')
+      ) {
+        return;
+      }
+
+      setPendingDeleteId('');
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [pendingDeleteId]);
 
   async function loadCategories() {
     try {
@@ -204,7 +229,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
       resetCategoryForm();
       await loadCategories();
       setPendingDeleteId('');
-      setActiveSortId('');
+      setDraggingCategoryId('');
     } catch (error) {
       setCategoryError(error.message);
     } finally {
@@ -230,7 +255,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
       await loadCategories();
       setCategoryMessage('Category deleted.');
       setPendingDeleteId('');
-      setActiveSortId('');
+      setDraggingCategoryId('');
       if (selectedParentId === category.id) {
         setSelectedParentId('');
         setSettingsView('manager');
@@ -246,7 +271,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
     setCategoryMessage('');
     setCategoryError('');
     setPendingDeleteId('');
-    setActiveSortId('');
+    setDraggingCategoryId('');
     resetCategoryForm();
   }
 
@@ -256,7 +281,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
     setCategoryMessage('');
     setCategoryError('');
     setPendingDeleteId('');
-    setActiveSortId('');
+    setDraggingCategoryId('');
     resetCategoryForm();
   }
 
@@ -264,7 +289,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
     setSelectedParentId(category.id);
     setSettingsView('children');
     setPendingDeleteId('');
-    setActiveSortId('');
+    setDraggingCategoryId('');
     setCategoryMessage('');
     setCategoryError('');
     resetCategoryForm();
@@ -288,44 +313,111 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
     return `${category.type === 'income' ? 'Income' : 'Expense'} : ${category.name}`;
   }
 
-  async function moveCategory(category, direction, rows) {
-    const currentIndex = rows.findIndex((item) => item.id === category.id);
-    const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-
-    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= rows.length) {
-      return;
-    }
-
-    const reordered = [...rows];
-    const [moved] = reordered.splice(currentIndex, 1);
-    reordered.splice(nextIndex, 0, moved);
-
-    setCategoryMessage('');
-    setCategoryError('');
-    setIsSortingCategory(true);
-
-    try {
-      await updateCategoryOrder(reordered);
-      await loadCategories();
-      setActiveSortId(category.id);
-    } catch (error) {
-      setCategoryError(error.message);
-    } finally {
-      setIsSortingCategory(false);
-    }
-  }
-
   function renderDeleteButton(category) {
     return (
       <button
         aria-label={pendingDeleteId === category.id ? `Hide delete for ${category.name}` : `Show delete for ${category.name}`}
         className="category-minus-button"
-        onClick={() => setPendingDeleteId((current) => (current === category.id ? '' : category.id))}
+        onClick={(event) => {
+          event.stopPropagation();
+          setPendingDeleteId((current) => (current === category.id ? '' : category.id));
+        }}
         type="button"
       >
         <FlatIcon name="minus" />
       </button>
     );
+  }
+
+  function reorderCategoryPreview(activeId, overId, rows) {
+    if (!activeId || !overId || activeId === overId) {
+      return rows;
+    }
+
+    const nextRows = [...rows];
+    const fromIndex = nextRows.findIndex((item) => item.id === activeId);
+    const toIndex = nextRows.findIndex((item) => item.id === overId);
+
+    if (fromIndex < 0 || toIndex < 0) {
+      return rows;
+    }
+
+    const [moved] = nextRows.splice(fromIndex, 1);
+    nextRows.splice(toIndex, 0, moved);
+
+    setCategories((current) => current.map((category) => {
+      const rowIndex = nextRows.findIndex((row) => row.id === category.id);
+      return rowIndex >= 0 ? { ...category, sort_order: rowIndex + 1 } : category;
+    }));
+
+    return nextRows;
+  }
+
+  function startCategoryDrag(event, category, rows) {
+    if (event.button !== undefined && event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    setPendingDeleteId('');
+    setDraggingCategoryId(category.id);
+    dragCategoryIdRef.current = category.id;
+    dragRowsRef.current = rows;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function moveCategoryDrag(event, category) {
+    if (dragCategoryIdRef.current !== category.id) {
+      return;
+    }
+
+    const targetRow = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest('[data-category-row-id]');
+    const overId = targetRow?.getAttribute('data-category-row-id');
+
+    if (!overId) {
+      return;
+    }
+
+    dragRowsRef.current = reorderCategoryPreview(category.id, overId, dragRowsRef.current);
+  }
+
+  async function endCategoryDrag(event, category) {
+    if (dragCategoryIdRef.current !== category.id) {
+      return;
+    }
+
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    dragCategoryIdRef.current = '';
+    setDraggingCategoryId('');
+    setCategoryMessage('');
+    setCategoryError('');
+    setIsSortingCategory(true);
+
+    try {
+      await updateCategoryOrder(dragRowsRef.current);
+      await loadCategories();
+    } catch (error) {
+      setCategoryError(error.message);
+      await loadCategories();
+    } finally {
+      dragRowsRef.current = [];
+      dragCategoryIdRef.current = '';
+      setIsSortingCategory(false);
+    }
+  }
+
+  function cancelCategoryDrag(event, category) {
+    if (dragCategoryIdRef.current !== category.id) {
+      return;
+    }
+
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    dragRowsRef.current = [];
+    dragCategoryIdRef.current = '';
+    setDraggingCategoryId('');
+    loadCategories();
   }
 
   function renderCategoryForm() {
@@ -422,27 +514,33 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
           {categoryError && <p className="form-message error compact-message">{categoryError}</p>}
           {categoryMessage && <p className="form-message success compact-message">{categoryMessage}</p>}
 
-          <div className="category-flat-list">
+          <div className="category-flat-list is-editing">
             {rows.length === 0 && (
               <p className="muted-copy category-empty-copy">No categories yet.</p>
             )}
 
-            {rows.map((category, index) => {
+            {rows.map((category) => {
               const children = childrenByParentId.get(category.id) || [];
               const preview = children.map((child) => child.name).join(', ');
 
+              const rowClassName = [
+                'category-flat-row',
+                pendingDeleteId === category.id ? 'reveal-delete' : '',
+                draggingCategoryId === category.id ? 'is-dragging' : ''
+              ].filter(Boolean).join(' ');
+
               return (
-                <div className={pendingDeleteId === category.id ? 'category-flat-row reveal-delete' : 'category-flat-row'} key={category.id}>
+                <div
+                  className={rowClassName}
+                  data-category-row-id={category.id}
+                  key={category.id}
+                >
                   <div className="category-row-slide">
                     {renderDeleteButton(category)}
-                    <button
-                      className="category-row-main"
-                      disabled
-                      type="button"
-                    >
+                    <div className="category-row-main">
                       <strong>{isChildView ? category.name : getCategoryLabel(category)}</strong>
                       {!isChildView && showSubcategories && preview && <small>{preview}</small>}
-                    </button>
+                    </div>
                     <div className="category-row-tools">
                       <button
                         className="category-icon-button"
@@ -453,35 +551,17 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
                         <FlatIcon name="edit" />
                       </button>
                       <button
-                        aria-label={`Sort ${category.name}`}
-                        className="category-icon-button"
-                        onClick={() => setActiveSortId((current) => (current === category.id ? '' : category.id))}
+                        aria-label={`Reorder ${category.name}`}
+                        className="category-icon-button category-drag-handle"
+                        disabled={isSortingCategory}
+                        onPointerCancel={(event) => cancelCategoryDrag(event, category)}
+                        onPointerDown={(event) => startCategoryDrag(event, category, rows)}
+                        onPointerMove={(event) => moveCategoryDrag(event, category)}
+                        onPointerUp={(event) => endCategoryDrag(event, category)}
                         type="button"
                       >
                         <FlatIcon name="grip" />
                       </button>
-                      {activeSortId === category.id && (
-                        <span className="category-sort-controls">
-                          <button
-                            aria-label={`Move ${category.name} up`}
-                            className="category-icon-button"
-                            disabled={index === 0 || isSortingCategory}
-                            onClick={() => moveCategory(category, 'up', rows)}
-                            type="button"
-                          >
-                            <FlatIcon name="up" />
-                          </button>
-                          <button
-                            aria-label={`Move ${category.name} down`}
-                            className="category-icon-button"
-                            disabled={index === rows.length - 1 || isSortingCategory}
-                            onClick={() => moveCategory(category, 'down', rows)}
-                            type="button"
-                          >
-                            <FlatIcon name="down" />
-                          </button>
-                        </span>
-                      )}
                     </div>
                   </div>
                   <button className="category-delete-reveal" onClick={() => removeCategory(category)} type="button">
