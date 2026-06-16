@@ -287,7 +287,7 @@ textarea:focus {
 
 .category-manager-title-row,
 .category-title-lockup,
-.category-toolbar {
+.category-header-tools {
   display: flex;
   align-items: center;
 }
@@ -311,8 +311,21 @@ textarea:focus {
   font-size: 0.66rem;
 }
 
-.category-toolbar {
+.category-header-tools {
+  flex: 0 0 auto;
   justify-content: flex-end;
+  gap: 10px;
+}
+
+.category-add-button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 
 .category-toggle {

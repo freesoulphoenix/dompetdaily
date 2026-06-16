@@ -48,6 +48,10 @@ function FlatIcon({ name }) {
     return <svg {...commonProps}><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M6 7l1 14h10l1-14" /><path d="M9 7V4h6v3" /></svg>;
   }
 
+  if (name === 'plus') {
+    return <svg {...commonProps}><circle cx="12" cy="12" r="8" /><path d="M12 8v8" /><path d="M8 12h8" /></svg>;
+  }
+
   if (name === 'user') {
     return <svg {...commonProps}><circle cx="12" cy="8" r="4" /><path d="M5 21a7 7 0 0 1 14 0" /></svg>;
   }
@@ -331,6 +335,7 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
   function renderCategoryManager() {
     const isChildView = settingsView === 'children' && selectedParent;
     const rows = isChildView ? selectedChildren : visibleParents;
+    const handleAddCategory = isChildView ? addChildCategory : addTopLevelCategory;
 
     return (
       <div className="page-stack category-subpage">
@@ -351,26 +356,27 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
               </div>
             </div>
 
-            {!isChildView && (
-              <label className="category-toggle" aria-label="Show subcategories">
-                <input
-                  checked={showSubcategories}
-                  onChange={(event) => setShowSubcategories(event.target.checked)}
-                  type="checkbox"
-                />
-                <span />
-              </label>
-            )}
-          </div>
+            <div className="category-header-tools">
+              <button
+                aria-label={isChildView ? 'Add subcategory' : 'Add top category'}
+                className="category-add-button"
+                onClick={handleAddCategory}
+                type="button"
+              >
+                <FlatIcon name="plus" />
+              </button>
 
-          <div className="category-toolbar">
-            <button
-              className="secondary-button small-action"
-              onClick={isChildView ? addChildCategory : addTopLevelCategory}
-              type="button"
-            >
-              {isChildView ? 'Add subcategory' : 'Add category'}
-            </button>
+              {!isChildView && (
+                <label className="category-toggle" aria-label="Show subcategories">
+                  <input
+                    checked={showSubcategories}
+                    onChange={(event) => setShowSubcategories(event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span />
+                </label>
+              )}
+            </div>
           </div>
 
           {renderCategoryForm()}
@@ -392,15 +398,19 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
                   {renderDeleteButton(category)}
                   <button
                     className="category-row-main"
-                    disabled={isChildView || children.length === 0}
-                    onClick={() => openParentCategory(category)}
+                    disabled
                     type="button"
                   >
                     <strong>{isChildView ? category.name : getCategoryLabel(category)}</strong>
                     {!isChildView && showSubcategories && preview && <small>{preview}</small>}
                   </button>
                   <div className="category-row-tools">
-                    <button className="category-icon-button" aria-label={`Edit ${category.name}`} onClick={() => editCategory(category)} type="button">
+                    <button
+                      className="category-icon-button"
+                      aria-label={isChildView ? `Edit ${category.name}` : `Open ${category.name} subcategories`}
+                      onClick={isChildView ? () => editCategory(category) : () => openParentCategory(category)}
+                      type="button"
+                    >
                       <FlatIcon name="edit" />
                     </button>
                     <span className="category-grip" aria-hidden="true"><FlatIcon name="grip" /></span>
