@@ -21,20 +21,50 @@ export async function getCategories() {
   return data;
 }
 
+async function getNextCategorySortOrder({ parentCategoryId, type, userProfileId }) {
+  let query = supabase
+    .from('categories')
+    .select('sort_order')
+    .eq('user_profile_id', userProfileId)
+    .eq('type', type)
+    .order('sort_order', { ascending: false, nullsFirst: false })
+    .limit(1);
+
+  query = parentCategoryId
+    ? query.eq('parent_category_id', parentCategoryId)
+    : query.is('parent_category_id', null);
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  const currentMax = Number(data?.[0]?.sort_order);
+  return Number.isFinite(currentMax) ? currentMax + 1 : 1;
+}
+
 export async function createCategory({ name, type = 'expense', parent_category_id = null }) {
   if (!supabase) {
     throw new Error('Supabase is not configured.');
   }
 
   const userProfileId = await getCurrentUserProfileId();
+  const parentCategoryId = parent_category_id || null;
+  const sortOrder = await getNextCategorySortOrder({
+    parentCategoryId,
+    type,
+    userProfileId
+  });
+
   const { data, error } = await supabase
     .from('categories')
     .insert({
       user_profile_id: userProfileId,
       name: name.trim(),
       type,
-      parent_category_id: parent_category_id || null,
-      sort_order: Date.now()
+      parent_category_id: parentCategoryId,
+      sort_order: sortOrder
     })
     .select('*')
     .single();
