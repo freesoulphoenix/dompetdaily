@@ -2,13 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import StatCard from '../components/StatCard.jsx';
 import TransactionList from '../components/TransactionList.jsx';
 import DueItem from '../components/DueItem.jsx';
+import AccountCard from '../components/AccountCard.jsx';
+import { deleteAccount } from '../services/accountService.js';
 import { getDashboardData } from '../services/dashboardService.js';
-import { getUpcomingDue } from '../services/upcomingDueService.js';
+import { deleteTransaction } from '../services/transactionService.js';
+import { createDuePaymentTransaction, deleteUpcomingDue, getUpcomingDue } from '../services/upcomingDueService.js';
 import { formatCurrency, formatShortCurrency } from '../utils/format.js';
 
 const chartPalette = ['#2196f3', '#26c6da', '#64b5f6', '#7986cb', '#9575cd', '#10b981'];
 
 const emptyDashboard = {
+  accounts: [],
   recentTransactions: [],
   summary: {
     assets: 0,
@@ -48,6 +52,7 @@ function getMeterWidth(value, maxValue) {
 export default function DashboardPage({ onNavigate }) {
   const [dashboard, setDashboard] = useState(emptyDashboard);
   const [dueItems, setDueItems] = useState([]);
+  const [activeDeleteRow, setActiveDeleteRow] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -84,7 +89,39 @@ export default function DashboardPage({ onNavigate }) {
     loadDashboard();
   }, []);
 
-  const { recentTransactions, spendingByAccount, spendingByProjectTag, summary, topSpendingCategories } = dashboard;
+  useEffect(() => {
+    if (!activeDeleteRow) {
+      return undefined;
+    }
+
+    function collapseRevealedRow(event) {
+      const target = event.target instanceof Element ? event.target : null;
+
+      if (!target) {
+        return;
+      }
+
+      if (
+        target.closest('.dashboard-row-minus')
+        || target.closest('.dashboard-row-delete')
+        || target.closest('.dashboard-row-control')
+      ) {
+        return;
+      }
+
+      setActiveDeleteRow(null);
+    }
+
+    document.addEventListener('pointerdown', collapseRevealedRow);
+    return () => document.removeEventListener('pointerdown', collapseRevealedRow);
+  }, [activeDeleteRow]);
+
+  const { accounts, recentTransactions, spendingByAccount, spendingByProjectTag, summary, topSpendingCategories } = dashboard;
+  const dashboardAccounts = accounts.filter((account) => ['Bank', 'E-Wallet'].includes(account.type));
+  const groupedAccounts = [
+    { label: 'Bank', rows: dashboardAccounts.filter((account) => account.type === 'Bank') },
+    { label: 'E-Wallet', rows: dashboardAccounts.filter((account) => account.type === 'E-Wallet') }
+  ].filter((group) => group.rows.length > 0);
   const maxAccountSpend = Math.max(...spendingByAccount.map((item) => item.value), 1);
   const maxProjectTagSpend = Math.max(...spendingByProjectTag.map((item) => item.value), 1);
   const trendHeights = useMemo(() => {
@@ -97,6 +134,88 @@ export default function DashboardPage({ onNavigate }) {
 
     return values.map((value) => Math.max((value / maxValue) * 100, 8));
   }, [topSpendingCategories]);
+
+  function isDeleteRowActive(section, id) {
+    return activeDeleteRow?.section === section && activeDeleteRow?.id === id;
+  }
+
+  function toggleDeleteRow(section, id) {
+    setActiveDeleteRow((currentRow) => (
+      currentRow?.section === section && currentRow?.id === id ? null : { section, id }
+    ));
+  }
+
+  async function handleDeleteAccount(account) {
+    const confirmed = window.confirm(`Delete ${account.name}?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError('');
+    setActiveDeleteRow(null);
+
+    try {
+      await deleteAccount(account.id);
+      await loadDashboard();
+    } catch (err) {
+      setError(err.message || 'Unable to delete account.');
+    }
+  }
+
+  async function handleDeleteTransaction(transaction) {
+    const confirmed = window.confirm('Delete this transaction?');
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError('');
+    setActiveDeleteRow(null);
+
+    try {
+      await deleteTransaction(transaction.id);
+      await loadDashboard();
+    } catch (err) {
+      setError(err.message || 'Unable to delete transaction.');
+    }
+  }
+
+  async function handleDeleteDueItem(item) {
+    const confirmed = window.confirm(`Delete ${item.title || item.name}?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError('');
+    setActiveDeleteRow(null);
+
+    try {
+      await deleteUpcomingDue(item.id);
+      await loadDashboard();
+    } catch (err) {
+      setError(err.message || 'Unable to delete due item.');
+    }
+  }
+
+  async function handlePayDueItem(item) {
+    const confirmed = window.confirm(`Create an expense transaction and mark ${item.title || item.name} as paid?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError('');
+    setActiveDeleteRow(null);
+
+    try {
+      await createDuePaymentTransaction(item);
+      await loadDashboard();
+    } catch (err) {
+      setError(err.message || 'Unable to pay due item.');
+    }
+  }
 
   return (
     <div className="page-stack">
@@ -125,12 +244,48 @@ export default function DashboardPage({ onNavigate }) {
       <section className="content-grid">
         <article className="panel">
           <div className="panel-header">
+            <h2>Accounts</h2>
+            <button className="text-button" onClick={() => onNavigate('accounts')}>View all</button>
+          </div>
+          <div className="dashboard-account-groups">
+            {groupedAccounts.map((group) => (
+              <section className="dashboard-account-group" key={group.label}>
+                <h3>{group.label}</h3>
+                <div className="dashboard-account-list">
+                  {group.rows.map((account) => (
+                    <AccountCard
+                      account={account}
+                      deleteRevealActive={isDeleteRowActive('account', account.id)}
+                      key={account.id}
+                      onDelete={handleDeleteAccount}
+                      onRevealDelete={() => toggleDeleteRow('account', account.id)}
+                      revealDeleteMode
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+            {groupedAccounts.length === 0 && <p className="muted-copy">No bank or e-wallet accounts yet.</p>}
+          </div>
+        </article>
+
+        <article className="panel">
+          <div className="panel-header">
             <h2>Upcoming Due</h2>
             <button className="text-button" onClick={() => onNavigate('due')}>View all</button>
           </div>
           <div className="stack-list">
             {dueItems.slice(0, 3).map((item) => (
-              <DueItem key={item.id} item={item} />
+              <DueItem
+                deleteRevealActive={isDeleteRowActive('due', item.id)}
+                expanded
+                item={item}
+                key={item.id}
+                onDelete={handleDeleteDueItem}
+                onPayNow={handlePayDueItem}
+                onRevealDelete={() => toggleDeleteRow('due', item.id)}
+                revealDeleteMode
+              />
             ))}
             {dueItems.length === 0 && (
               <p className="muted-copy">No upcoming bills yet.</p>
@@ -214,7 +369,13 @@ export default function DashboardPage({ onNavigate }) {
             <h2>Recent Transactions</h2>
             <button className="text-button" onClick={() => onNavigate('transactions')}>View all</button>
           </div>
-          <TransactionList transactions={recentTransactions} />
+          <TransactionList
+            activeDeleteId={activeDeleteRow?.section === 'transaction' ? activeDeleteRow.id : ''}
+            onDelete={handleDeleteTransaction}
+            onRevealDelete={(transaction) => toggleDeleteRow('transaction', transaction.id)}
+            revealDeleteMode
+            transactions={recentTransactions}
+          />
         </article>
       </section>
 

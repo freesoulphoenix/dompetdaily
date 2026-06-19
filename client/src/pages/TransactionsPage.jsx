@@ -149,6 +149,7 @@ export default function TransactionsPage() {
           <TransactionList
             onDelete={handleDelete}
             onEdit={openEditModal}
+            revealDeleteMode
             transactions={filteredTransactions}
           />
         )}

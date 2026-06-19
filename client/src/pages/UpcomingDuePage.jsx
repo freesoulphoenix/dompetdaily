@@ -176,6 +176,7 @@ export default function UpcomingDuePage() {
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingDueId, setEditingDueId] = useState(null);
+  const [activeDeleteId, setActiveDeleteId] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -215,6 +216,33 @@ export default function UpcomingDuePage() {
   }, []);
 
   useEffect(() => {
+    if (!activeDeleteId) {
+      return undefined;
+    }
+
+    function collapseRevealedRow(event) {
+      const target = event.target instanceof Element ? event.target : null;
+
+      if (!target) {
+        return;
+      }
+
+      if (
+        target.closest('.apple-edit-minus')
+        || target.closest('.apple-edit-delete-reveal')
+        || target.closest('.apple-edit-control')
+      ) {
+        return;
+      }
+
+      setActiveDeleteId('');
+    }
+
+    document.addEventListener('pointerdown', collapseRevealedRow);
+    return () => document.removeEventListener('pointerdown', collapseRevealedRow);
+  }, [activeDeleteId]);
+
+  useEffect(() => {
     sendBrowserNotifications(reminderItems);
   }, [reminderItems]);
 
@@ -228,6 +256,7 @@ export default function UpcomingDuePage() {
   function openCreateForm() {
     setForm(emptyForm);
     setEditingDueId(null);
+    setActiveDeleteId('');
     setIsFormOpen(true);
   }
 
@@ -248,6 +277,7 @@ export default function UpcomingDuePage() {
       notes: item.notes || ''
     });
     setEditingDueId(item.id);
+    setActiveDeleteId('');
     setIsFormOpen(true);
   }
 
@@ -322,6 +352,7 @@ export default function UpcomingDuePage() {
     }
 
     setError('');
+    setActiveDeleteId('');
 
     try {
       await deleteUpcomingDue(item.id);
@@ -339,6 +370,7 @@ export default function UpcomingDuePage() {
     }
 
     setError('');
+    setActiveDeleteId('');
 
     try {
       await createDuePaymentTransaction(item);
@@ -608,12 +640,15 @@ export default function UpcomingDuePage() {
       <section className="due-grid">
         {dueItems.map((item) => (
           <DueItem
+            deleteRevealActive={activeDeleteId === item.id}
             expanded
             item={item}
             key={item.id}
             onDelete={handleDelete}
             onEdit={openEditForm}
             onPayNow={handlePayNow}
+            onRevealDelete={() => setActiveDeleteId((currentId) => (currentId === item.id ? '' : item.id))}
+            revealDeleteMode
           />
         ))}
       </section>

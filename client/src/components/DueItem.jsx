@@ -51,14 +51,22 @@ function getDueTimingText(item) {
   return `in ${days} days`;
 }
 
-export default function DueItem({ expanded = false, item, onDelete, onEdit, onPayNow }) {
+export default function DueItem({
+  deleteRevealActive = false,
+  expanded = false,
+  item,
+  onDelete,
+  onEdit,
+  onPayNow,
+  onRevealDelete,
+  revealDeleteMode = false
+}) {
   const title = item.title || item.name;
   const amount = item.amount_due ?? item.amount;
   const reminderText = item.reminder_enabled === false
     ? 'reminder off'
     : `reminds ${item.reminder_days_before ?? 2} days before`;
-
-  return (
+  const row = (
     <article className={`due-item ${expanded ? 'expanded' : ''}`}>
       <span className="due-date">{formatDueDay(item)}</span>
       <div className="due-main">
@@ -77,13 +85,41 @@ export default function DueItem({ expanded = false, item, onDelete, onEdit, onPa
         {expanded && (
           <span className="due-actions">
             {onPayNow && item.status !== 'paid' && (
-              <button className="secondary-button small" onClick={() => onPayNow(item)}>Pay Now</button>
+              <button className="secondary-button small apple-edit-control dashboard-row-control" onClick={() => onPayNow(item)}>Pay Now</button>
             )}
-            {onEdit && <button className="text-button" onClick={() => onEdit(item)}>Edit</button>}
-            {onDelete && <button className="text-button danger" onClick={() => onDelete(item)}>Delete</button>}
+            {onEdit && <button className="text-button apple-edit-control dashboard-row-control" onClick={() => onEdit(item)}>Edit</button>}
+            {onDelete && !revealDeleteMode && <button className="text-button danger" onClick={() => onDelete(item)}>Delete</button>}
           </span>
         )}
       </div>
     </article>
+  );
+
+  if (!revealDeleteMode) {
+    return row;
+  }
+
+  return (
+    <div className={`apple-edit-row ${deleteRevealActive ? 'reveal-delete' : ''}`}>
+      <button
+        aria-label={`Delete ${title}`}
+        className="apple-edit-delete-reveal dashboard-row-delete"
+        onClick={() => onDelete?.(item)}
+        type="button"
+      >
+        Delete
+      </button>
+      <div className="apple-edit-row-slide">
+        <button
+          aria-label={deleteRevealActive ? `Hide delete for ${title}` : `Show delete for ${title}`}
+          className="apple-edit-minus dashboard-row-minus"
+          onClick={() => onRevealDelete?.(item)}
+          type="button"
+        >
+          <span aria-hidden="true">-</span>
+        </button>
+        {row}
+      </div>
+    </div>
   );
 }

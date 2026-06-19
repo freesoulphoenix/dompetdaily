@@ -20,6 +20,7 @@ export default function AccountsPage() {
   const [accounts, setAccounts] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingAccountId, setEditingAccountId] = useState(null);
+  const [activeDeleteId, setActiveDeleteId] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,9 +47,37 @@ export default function AccountsPage() {
     loadAccounts();
   }, []);
 
+  useEffect(() => {
+    if (!activeDeleteId) {
+      return undefined;
+    }
+
+    function collapseRevealedRow(event) {
+      const target = event.target instanceof Element ? event.target : null;
+
+      if (!target) {
+        return;
+      }
+
+      if (
+        target.closest('.apple-edit-minus')
+        || target.closest('.apple-edit-delete-reveal')
+        || target.closest('.apple-edit-control')
+      ) {
+        return;
+      }
+
+      setActiveDeleteId('');
+    }
+
+    document.addEventListener('pointerdown', collapseRevealedRow);
+    return () => document.removeEventListener('pointerdown', collapseRevealedRow);
+  }, [activeDeleteId]);
+
   function openCreateForm() {
     setForm(emptyForm);
     setEditingAccountId(null);
+    setActiveDeleteId('');
     setIsFormOpen(true);
   }
 
@@ -63,6 +92,7 @@ export default function AccountsPage() {
       status: account.status || 'active'
     });
     setEditingAccountId(account.id);
+    setActiveDeleteId('');
     setIsFormOpen(true);
   }
 
@@ -108,6 +138,7 @@ export default function AccountsPage() {
     }
 
     setError('');
+    setActiveDeleteId('');
 
     try {
       await deleteAccount(account.id);
@@ -218,9 +249,12 @@ export default function AccountsPage() {
         {accounts.map((account) => (
           <AccountCard
             account={account}
+            deleteRevealActive={activeDeleteId === account.id}
             key={account.id}
             onDelete={handleDelete}
             onEdit={openEditForm}
+            onRevealDelete={() => setActiveDeleteId((currentId) => (currentId === account.id ? '' : account.id))}
+            revealDeleteMode
           />
         ))}
       </section>

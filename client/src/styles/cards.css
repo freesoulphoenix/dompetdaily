@@ -105,6 +105,112 @@
   justify-content: flex-end;
 }
 
+.apple-edit-row {
+  position: relative;
+  overflow: hidden;
+}
+
+.apple-edit-row-slide {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  transition: transform 220ms ease;
+  will-change: transform;
+}
+
+.apple-edit-row.reveal-delete .apple-edit-row-slide {
+  transform: translateX(-92px);
+}
+
+.apple-edit-delete-reveal {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  width: 92px;
+  place-items: center;
+  border: 0;
+  color: #ffffff;
+  background: var(--color-danger);
+  font-size: 0.78rem;
+  font-weight: 900;
+  transform: translateX(100%);
+  transition: transform 220ms ease;
+  cursor: pointer;
+}
+
+.apple-edit-row.reveal-delete .apple-edit-delete-reveal {
+  transform: translateX(0);
+}
+
+.apple-edit-minus {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  color: #ffffff;
+  background: var(--color-danger);
+  box-shadow: 0 5px 12px rgba(255, 62, 105, 0.16);
+  cursor: pointer;
+}
+
+.apple-edit-minus span {
+  transform: translateY(-1px);
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.apple-edit-row-slide > .transaction-row,
+.apple-edit-row-slide > .due-item,
+.apple-edit-card-content {
+  min-width: 0;
+}
+
+.apple-edit-card-content {
+  width: 100%;
+}
+
+.dashboard-account-groups,
+.dashboard-account-list {
+  display: grid;
+  gap: 10px;
+}
+
+.dashboard-account-group {
+  display: grid;
+  gap: 8px;
+}
+
+.dashboard-account-group h3 {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.account-reveal-row .apple-edit-card-content {
+  box-shadow: none;
+}
+
+.account-reveal-row .account-actions {
+  justify-content: flex-end;
+}
+
+.account-edit-row {
+  border-radius: 20px;
+}
+
 .amount-negative {
   color: var(--color-danger);
 }
@@ -145,6 +251,10 @@
 .account-card h2 {
   margin-top: 3px;
   font-size: 1rem;
+}
+
+.account-identity {
+  min-width: 0;
 }
 
 .account-icon {
