@@ -332,7 +332,7 @@ export default function StatementImportPage() {
 
   async function handleDeleteImportFile(item) {
     const confirmed = window.confirm(
-      `Delete the source file "${item.file_name}" now?\n\nImported rows, linked transactions, and report data will remain. Only the uploaded statement/spreadsheet file is removed from storage.`
+      `Delete "${item.file_name}" now?\n\nThe source file and all unimported review rows will be removed. Transactions already imported and report data will remain.`
     );
 
     if (!confirmed) {
@@ -343,12 +343,12 @@ export default function StatementImportPage() {
     setSaving(true);
 
     try {
-      const updatedImport = await deleteStatementImportFile(item);
+      const deletedImportId = await deleteStatementImportFile(item);
       setImports((currentImports) => currentImports.filter((currentItem) => (
-        currentItem.id !== updatedImport.id
+        currentItem.id !== deletedImportId
       )));
 
-      if (activeImport?.id === updatedImport.id) {
+      if (activeImport?.id === deletedImportId) {
         setActiveImport(null);
         setPreviewRows([]);
         setSelectedIds(new Set());
@@ -586,7 +586,7 @@ export default function StatementImportPage() {
 
         <div className="retention-notice">
           <strong>90-day file retention</strong>
-          <span>Imported statement files are kept for 90 days. Reviewed transactions and reports will remain unless you delete them.</span>
+          <span>Source files and unimported review rows are removed after 90 days. Transactions already imported and report data remain available.</span>
         </div>
 
         <form className="form-grid" onSubmit={handleSubmit}>

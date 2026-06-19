@@ -1,6 +1,6 @@
 # Cleanup retained files
 
-Deletes receipt and statement files after their 90-day retention window while keeping the app records for reporting.
+Deletes receipt and statement files after their 90-day retention window. Receipt entries remain available. Statement staging rows are removed with their source import, while finalized transactions and report data remain available.
 
 Deploy:
 

@@ -28,6 +28,22 @@ function normalizeFileName(fileName) {
   return String(fileName || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+function getStatementStoragePath(statementImport) {
+  if (statementImport.file_storage_path) {
+    return statementImport.file_storage_path;
+  }
+
+  const marker = '/storage/v1/object/public/statements/';
+  const fileUrl = String(statementImport.file_url || '');
+  const markerIndex = fileUrl.indexOf(marker);
+
+  if (markerIndex === -1) {
+    return '';
+  }
+
+  return decodeURIComponent(fileUrl.slice(markerIndex + marker.length).split('?')[0]);
+}
+
 async function getFileHash(file) {
   if (!file?.arrayBuffer || !crypto.subtle) {
     return '';
@@ -168,32 +184,33 @@ export async function deleteStatementImportFile(statementImport) {
     throw new Error('Choose an uploaded statement first.');
   }
 
-  if (statementImport.file_storage_path) {
+  const storagePath = getStatementStoragePath(statementImport);
+
+  if (statementImport.file_url && !storagePath) {
+    throw new Error('Unable to locate the uploaded statement file.');
+  }
+
+  if (storagePath) {
     const { error: storageError } = await client.storage
       .from(STATEMENT_BUCKET)
-      .remove([statementImport.file_storage_path]);
+      .remove([storagePath]);
 
     if (storageError) {
       throw storageError;
     }
   }
 
-  const { data, error } = await client
+  const { error } = await client
     .from('statement_imports')
-    .update({
-      file_deleted_at: new Date().toISOString(),
-      file_url: null
-    })
+    .delete()
     .eq('id', statementImport.id)
-    .eq('user_profile_id', userProfileId)
-    .select('*')
-    .single();
+    .eq('user_profile_id', userProfileId);
 
   if (error) {
     throw error;
   }
 
-  return data;
+  return statementImport.id;
 }
 
 export async function updateStatementImportStatus(id, importStatus) {

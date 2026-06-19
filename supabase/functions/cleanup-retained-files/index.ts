@@ -87,6 +87,32 @@ async function cleanupReceipts(supabase: ReturnType<typeof createClient>, now: s
 
 async function cleanupStatements(supabase: ReturnType<typeof createClient>, now: string): Promise<CleanupStats> {
   const stats = { scanned: 0, deleted: 0, failed: 0 };
+  const { data: tombstones, error: tombstoneQueryError } = await supabase
+    .from("statement_imports")
+    .select("id")
+    .not("file_deleted_at", "is", null)
+    .limit(BATCH_SIZE);
+
+  if (tombstoneQueryError) {
+    throw tombstoneQueryError;
+  }
+
+  const tombstoneIds = (tombstones ?? []).map((item) => item.id);
+
+  if (tombstoneIds.length > 0) {
+    stats.scanned += tombstoneIds.length;
+    const { error: tombstoneDeleteError } = await supabase
+      .from("statement_imports")
+      .delete()
+      .in("id", tombstoneIds);
+
+    if (tombstoneDeleteError) {
+      stats.failed += tombstoneIds.length;
+    } else {
+      stats.deleted += tombstoneIds.length;
+    }
+  }
+
   const { data, error } = await supabase
     .from("statement_imports")
     .select("id, file_url, file_storage_path")
@@ -115,15 +141,12 @@ async function cleanupStatements(supabase: ReturnType<typeof createClient>, now:
       continue;
     }
 
-    const { error: updateError } = await supabase
+    const { error: deleteError } = await supabase
       .from("statement_imports")
-      .update({
-        file_url: null,
-        file_deleted_at: now
-      })
+      .delete()
       .eq("id", statementImport.id);
 
-    if (updateError) {
+    if (deleteError) {
       stats.failed += 1;
       continue;
     }
