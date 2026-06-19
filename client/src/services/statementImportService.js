@@ -71,6 +71,7 @@ export async function getStatementImports() {
     .from('statement_imports')
     .select('*')
     .eq('user_profile_id', userProfileId)
+    .is('file_deleted_at', null)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -93,6 +94,7 @@ export async function findDuplicateStatementImport(file, bankName = '') {
       .select('*')
       .eq('user_profile_id', userProfileId)
       .eq('file_hash', fileHash)
+      .is('file_deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(1);
 
@@ -110,6 +112,7 @@ export async function findDuplicateStatementImport(file, bankName = '') {
     .select('*')
     .eq('user_profile_id', userProfileId)
     .eq('file_size', fileSize)
+    .is('file_deleted_at', null)
     .order('created_at', { ascending: false });
 
   fingerprintQuery = normalizedBankName

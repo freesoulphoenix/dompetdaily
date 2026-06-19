@@ -344,12 +344,14 @@ export default function StatementImportPage() {
 
     try {
       const updatedImport = await deleteStatementImportFile(item);
-      setImports((currentImports) => currentImports.map((currentItem) => (
-        currentItem.id === updatedImport.id ? updatedImport : currentItem
+      setImports((currentImports) => currentImports.filter((currentItem) => (
+        currentItem.id !== updatedImport.id
       )));
 
       if (activeImport?.id === updatedImport.id) {
-        setActiveImport(updatedImport);
+        setActiveImport(null);
+        setPreviewRows([]);
+        setSelectedIds(new Set());
       }
     } catch (err) {
       setError(err.message || 'Unable to delete uploaded file.');
