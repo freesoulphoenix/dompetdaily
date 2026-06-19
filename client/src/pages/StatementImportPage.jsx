@@ -19,6 +19,7 @@ import { createTransaction } from '../services/transactionService.js';
 import { linkDuePayment } from '../services/upcomingDueService.js';
 import { getCategoryOptions } from '../utils/categoryOptions.js';
 import { formatCurrency } from '../utils/format.js';
+import { resolveMoneyDirection } from '../utils/transactionDirection.js';
 
 const allowedExtensions = ['pdf', 'csv', 'xlsx'];
 const supportedSources = ['BCA', 'Mandiri', 'BRI', 'BNI', 'Jago', 'GoPay', 'OVO', 'ShopeePay', 'DANA', 'LinkAja', 'Generic PDF', 'CSV', 'XLSX'];
@@ -177,6 +178,10 @@ export default function StatementImportPage() {
 
   function normalizeRowLocalChange(row, field, value) {
     const nextRow = { ...row, [field]: value };
+
+    if (field === 'transaction_type' && value !== 'transfer') {
+      nextRow.money_direction = resolveMoneyDirection(nextRow);
+    }
 
     if (field === 'transaction_type' && value === 'transfer') {
       nextRow.category_id = '';
@@ -426,6 +431,7 @@ export default function StatementImportPage() {
   }
 
   async function createTransactionFromImportedRow(row) {
+    const moneyDirection = resolveMoneyDirection(row);
     const transaction = await createTransaction({
       account_id: row.account_id,
       from_account_id: row.transaction_type === 'transfer'
@@ -443,7 +449,7 @@ export default function StatementImportPage() {
       transaction_date: row.transaction_date,
       transfer_fee: row.transfer_fee || 0,
       transfer_purpose: row.transfer_purpose || '',
-      money_direction: row.money_direction || null,
+      money_direction: moneyDirection,
       notes: row.notes || (activeImport ? `Imported from ${activeImport.file_name}` : 'Imported from statement')
     });
 
@@ -473,13 +479,6 @@ export default function StatementImportPage() {
     const match = await findSmartMatch(row);
 
     if (match) {
-      if (match.type === 'existing_transaction') {
-        await updateImportedTransactionStatus(row.id, 'duplicate', match.target.id);
-        setPreviewRows((currentRows) => currentRows.map((currentRow) => (
-          currentRow.id === row.id ? { ...currentRow, import_status: 'duplicate' } : currentRow
-        )));
-      }
-
       setPendingMatch({
         match,
         remainingRows,
@@ -924,6 +923,10 @@ export default function StatementImportPage() {
                 {pendingMatch.match.message}
               </span>
             </div>
+
+            <p className="muted-copy">
+              This is only a warning. No entry has been changed. Review the match and choose what the app should do.
+            </p>
 
             <div className="modal-actions">
               {pendingMatch.match.type === 'existing_transaction' ? (

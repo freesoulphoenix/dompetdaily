@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient.js';
 import { getCurrentUserProfileId } from './userProfileService.js';
+import { resolveMoneyDirection } from '../utils/transactionDirection.js';
 
 const STATEMENT_BUCKET = 'statements';
 
@@ -229,6 +230,7 @@ function normalizeImportedRow(row, userProfileId, statementImportId) {
   const cleanDescription = row.clean_description || row.description || row.raw_description || 'Imported transaction';
   const rawDescription = row.raw_description || row.description || cleanDescription;
   const amount = Number(row.amount || 0);
+  const transactionType = row.transaction_type || (amount < 0 ? 'expense' : 'income');
 
   return {
     user_profile_id: userProfileId,
@@ -238,8 +240,12 @@ function normalizeImportedRow(row, userProfileId, statementImportId) {
     raw_description: rawDescription,
     clean_description: cleanDescription,
     amount,
-    money_direction: row.money_direction || (amount < 0 ? 'out' : amount > 0 ? 'in' : null),
-    transaction_type: row.transaction_type || (amount < 0 ? 'expense' : 'income'),
+    money_direction: resolveMoneyDirection({
+      amount,
+      money_direction: row.money_direction,
+      transaction_type: transactionType
+    }),
+    transaction_type: transactionType,
     account_id: row.account_id || null,
     from_account_id: row.from_account_id || null,
     to_account_id: row.to_account_id || null,
@@ -304,11 +310,12 @@ export async function updateImportedTransactionStatus(id, importStatus, createdT
 
 export async function updateImportedTransaction(id, row) {
   const { client, userProfileId } = await getScopedClient();
+  const amount = Number(row.amount || 0);
   const payload = {
     clean_description: row.clean_description || row.description || 'Imported transaction',
     description: row.clean_description || row.description || 'Imported transaction',
     raw_description: row.raw_description || null,
-    amount: Number(row.amount || 0),
+    amount,
     transaction_date: row.transaction_date,
     transaction_type: row.transaction_type,
     account_id: row.account_id || null,
@@ -318,7 +325,11 @@ export async function updateImportedTransaction(id, row) {
     project_tag_id: row.project_tag_id || null,
     transfer_purpose: row.transfer_purpose || null,
     transfer_fee: Number(row.transfer_fee || 0),
-    money_direction: row.money_direction || null,
+    money_direction: resolveMoneyDirection({
+      amount,
+      money_direction: row.money_direction,
+      transaction_type: row.transaction_type
+    }),
     notes: row.notes || null,
     import_status: row.import_status || 'pending'
   };

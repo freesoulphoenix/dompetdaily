@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient.js';
 import { getCurrentUserProfileId } from './userProfileService.js';
+import { resolveMoneyDirection } from '../utils/transactionDirection.js';
 
 function requireSupabase() {
   if (!supabase) {
@@ -35,19 +36,7 @@ function sameAmount(firstAmount, secondAmount) {
 }
 
 function getDirection(value) {
-  if (value.money_direction) {
-    return value.money_direction;
-  }
-
-  if (value.transaction_type === 'income') {
-    return 'in';
-  }
-
-  if (value.transaction_type === 'expense') {
-    return 'out';
-  }
-
-  return Number(value.amount || 0) < 0 ? 'out' : 'in';
+  return resolveMoneyDirection(value);
 }
 
 function hasCompatibleDirection(first, second) {
