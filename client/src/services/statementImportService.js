@@ -325,6 +325,19 @@ export async function updateImportedTransactionStatus(id, importStatus, createdT
     throw error;
   }
 
+  if (createdTransactionId) {
+    const { error: transactionLinkError } = await client
+      .from('transactions')
+      .update({ imported_transaction_id: id })
+      .eq('id', createdTransactionId)
+      .eq('user_profile_id', userProfileId)
+      .is('imported_transaction_id', null);
+
+    if (transactionLinkError) {
+      throw transactionLinkError;
+    }
+  }
+
   return data;
 }
 

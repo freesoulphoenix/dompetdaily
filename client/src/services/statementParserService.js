@@ -1,5 +1,3 @@
-const supportedBanks = ['BCA', 'Mandiri', 'BRI', 'BNI', 'Jago', 'GoPay', 'OVO', 'ShopeePay', 'DANA', 'LinkAja', 'Generic PDF', 'CSV', 'XLSX'];
-
 const garbageKeywords = [
   'saldo awal',
   'saldo akhir',
@@ -357,8 +355,8 @@ async function parsePdfFile(file) {
 }
 
 export async function parseStatementFile(file, bankName) {
-  if (!supportedBanks.includes(bankName)) {
-    throw new Error('Choose a supported bank before parsing.');
+  if (!bankName) {
+    throw new Error('Choose a source account before parsing.');
   }
 
   const fileType = file.name.split('.').pop()?.toLowerCase();

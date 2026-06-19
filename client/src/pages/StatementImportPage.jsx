@@ -22,7 +22,6 @@ import { formatCurrency } from '../utils/format.js';
 import { resolveMoneyDirection } from '../utils/transactionDirection.js';
 
 const allowedExtensions = ['pdf', 'csv', 'xlsx'];
-const supportedSources = ['BCA', 'Mandiri', 'BRI', 'BNI', 'Jago', 'GoPay', 'OVO', 'ShopeePay', 'DANA', 'LinkAja', 'Generic PDF', 'CSV', 'XLSX'];
 const activeStatuses = new Set(['pending', 'needs_review', 'duplicate']);
 
 function getFileType(file) {
@@ -83,6 +82,12 @@ export default function StatementImportPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const categoryOptions = useMemo(() => getCategoryOptions(categories), [categories]);
+  const sourceAccounts = useMemo(() => (
+    accounts.filter((account) => ['Bank', 'E-Wallet'].includes(account.type))
+  ), [accounts]);
+  const sourceOptions = useMemo(() => (
+    [...new Set([...sourceAccounts.map((account) => account.name), 'Generic PDF'])]
+  ), [sourceAccounts]);
 
   const sortedImports = useMemo(() => (
     [...imports].sort((first, second) => {
@@ -148,6 +153,14 @@ export default function StatementImportPage() {
   useEffect(() => {
     loadImports();
   }, []);
+
+  useEffect(() => {
+    if (loading || sourceOptions.includes(sourceName)) {
+      return;
+    }
+
+    setSourceName(sourceOptions[0] || 'Generic PDF');
+  }, [loading, sourceName, sourceOptions]);
 
   function handleFileChange(event) {
     const selectedFile = event.target.files?.[0] || null;
@@ -263,14 +276,6 @@ export default function StatementImportPage() {
     setSelectedIds(new Set(rows.map((row) => row.id)));
   }
 
-  function unselectRows(rows) {
-    setSelectedIds((currentIds) => {
-      const nextIds = new Set(currentIds);
-      rows.forEach((row) => nextIds.delete(row.id));
-      return nextIds;
-    });
-  }
-
   async function openImportPreview(statementImport) {
     setError('');
 
@@ -316,7 +321,12 @@ export default function StatementImportPage() {
         fileHash: duplicate.fileHash
       });
       const rows = await parseStatementFile(file, sourceName);
-      const savedRows = await saveImportedTransactions(statementImport.id, rows);
+      const sourceAccount = sourceAccounts.find((account) => account.name === sourceName);
+      const rowsWithSourceAccount = rows.map((row) => ({
+        ...row,
+        account_id: row.account_id || sourceAccount?.id || null
+      }));
+      const savedRows = await saveImportedTransactions(statementImport.id, rowsWithSourceAccount);
       setFile(null);
       event.target.reset();
       setActiveImport(statementImport);
@@ -430,6 +440,37 @@ export default function StatementImportPage() {
   async function ignoreRow(row) {
     await updateImportedTransactionStatus(row.id, 'ignored');
     setRowStatus(row.id, 'ignored');
+  }
+
+  async function ignoreSelectedRows() {
+    if (selectedRows.length === 0) {
+      setError('Select one or more rows to ignore.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Ignore ${selectedRows.length} selected row${selectedRows.length === 1 ? '' : 's'}?\n\nIgnored rows will not be added to Activity.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const selectedIdList = selectedRows.map((row) => row.id);
+    setError('');
+    setSaving(true);
+
+    try {
+      await bulkUpdateImportedTransactions(selectedIdList, { import_status: 'ignored' });
+      setPreviewRows((currentRows) => currentRows.map((row) => (
+        selectedIdList.includes(row.id) ? { ...row, import_status: 'ignored' } : row
+      )));
+      setSelectedIds(new Set());
+    } catch (err) {
+      setError(err.message || 'Unable to ignore selected rows.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function createTransactionFromImportedRow(row) {
@@ -591,9 +632,9 @@ export default function StatementImportPage() {
 
         <form className="form-grid" onSubmit={handleSubmit}>
           <label className="field-group">
-            Source
+            Source account
             <select onChange={(event) => setSourceName(event.target.value)} value={sourceName}>
-              {supportedSources.map((source) => (
+              {sourceOptions.map((source) => (
                 <option key={source} value={source}>{source}</option>
               ))}
             </select>
@@ -639,8 +680,9 @@ export default function StatementImportPage() {
           <div className="button-row">
             <button className="secondary-button" onClick={() => selectRows(activeRows)}>Select All</button>
             <button className="secondary-button" onClick={() => setSelectedIds(new Set())}>Unselect All</button>
-            <button className="secondary-button" onClick={() => selectRows(activeRows)}>Select Visible</button>
-            <button className="secondary-button" onClick={() => unselectRows(activeRows)}>Unselect Visible</button>
+            <button className="secondary-button danger-button" disabled={saving || selectedRows.length === 0} onClick={ignoreSelectedRows}>
+              Ignore Selected
+            </button>
           </div>
 
           <div className="filter-panel">
