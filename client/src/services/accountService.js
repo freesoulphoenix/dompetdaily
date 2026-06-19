@@ -176,7 +176,7 @@ export async function deleteAccount(id) {
 
   if (linkedTransactions?.length) {
     throw new Error(
-      'This account cannot be deleted because it is used by one or more transactions. Reassign or delete those transactions first.'
+      'This account cannot be deleted because it is used by one or more transactions.'
     );
   }
 
