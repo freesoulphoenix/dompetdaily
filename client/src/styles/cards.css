@@ -486,6 +486,25 @@
   margin: 16px 0;
 }
 
+.statement-review-panel.is-collapsed .panel-header {
+  margin-bottom: 0;
+}
+
+.review-queue-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-queue-toggle svg {
+  transition: transform 0.2s ease;
+}
+
+.statement-review-panel.is-collapsed .review-queue-toggle svg {
+  transform: rotate(180deg);
+}
+
 .statement-preview-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

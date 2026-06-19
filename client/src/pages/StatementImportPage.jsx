@@ -78,6 +78,7 @@ export default function StatementImportPage() {
   const [editingIds, setEditingIds] = useState(new Set());
   const [rawVisibleIds, setRawVisibleIds] = useState(new Set());
   const [pendingMatch, setPendingMatch] = useState(null);
+  const [reviewCollapsed, setReviewCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -282,6 +283,7 @@ export default function StatementImportPage() {
     try {
       const rows = await getImportedTransactions(statementImport.id);
       setActiveImport(statementImport);
+      setReviewCollapsed(false);
       setPreviewRows(rows);
       selectRows(rows.filter((row) => row.import_status === 'pending'));
     } catch (err) {
@@ -330,6 +332,7 @@ export default function StatementImportPage() {
       setFile(null);
       event.target.reset();
       setActiveImport(statementImport);
+      setReviewCollapsed(false);
       setPreviewRows(savedRows);
       selectRows(savedRows.filter((row) => row.import_status === 'pending'));
       await loadImports();
@@ -360,6 +363,7 @@ export default function StatementImportPage() {
 
       if (activeImport?.id === deletedImportId) {
         setActiveImport(null);
+        setReviewCollapsed(false);
         setPreviewRows([]);
         setSelectedIds(new Set());
       }
@@ -659,15 +663,31 @@ export default function StatementImportPage() {
       </section>
 
       {activeImport && (
-        <article className="panel">
+        <article className={`panel statement-review-panel${reviewCollapsed ? ' is-collapsed' : ''}`}>
           <div className="panel-header">
             <div>
               <h2>Review Queue</h2>
               <p className="muted-copy">{activeImport.file_name}</p>
             </div>
-            <span className="summary-pill">{selectedRows.length} selected</span>
+            <div className="review-queue-header-actions">
+              <span className="summary-pill">{selectedRows.length} selected</span>
+              <button
+                aria-expanded={!reviewCollapsed}
+                aria-label={reviewCollapsed ? 'Expand review queue' : 'Collapse review queue'}
+                className="icon-button review-queue-toggle"
+                onClick={() => setReviewCollapsed((currentValue) => !currentValue)}
+                title={reviewCollapsed ? 'Expand review queue' : 'Collapse review queue'}
+                type="button"
+              >
+                <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 24 24" width="18">
+                  <path d="m6 15 6-6 6 6" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+                </svg>
+              </button>
+            </div>
           </div>
 
+          {!reviewCollapsed && (
+            <>
           <section className="statement-summary-grid">
             <span><strong>{selectedRows.length}</strong> selected</span>
             <span><strong>{formatCurrency(summary.totalIncome)}</strong> income</span>
@@ -894,6 +914,8 @@ export default function StatementImportPage() {
               {saving ? 'Importing...' : 'Import Selected'}
             </button>
           </div>
+            </>
+          )}
         </article>
       )}
 
