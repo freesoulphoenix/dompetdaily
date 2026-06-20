@@ -503,6 +503,15 @@
   .auth-shell > .auth-card {
     margin-block: auto;
   }
+
+  body:has(.bottom-sheet-backdrop) .mobile-nav,
+  body:has(.modal-backdrop) .mobile-nav,
+  body:has(.bottom-sheet-backdrop) .quick-actions,
+  body:has(.modal-backdrop) .quick-actions {
+    visibility: hidden;
+    pointer-events: none;
+    opacity: 0;
+  }
 }
 
 .portrait-orientation-guard {
