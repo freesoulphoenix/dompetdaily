@@ -44,7 +44,7 @@ export default function LoginPage({ onShowForgotPassword, onShowRegister }) {
         <div className="auth-brand">
           <BrandMark />
           <div>
-            <strong>Jejak Dana</strong>
+            <strong>Jejak Saku</strong>
             <small>Access your daily expense workspace.</small>
           </div>
         </div>
@@ -108,7 +108,7 @@ export default function LoginPage({ onShowForgotPassword, onShowRegister }) {
         </p>
 
         <p className="auth-switch">
-          New to Jejak Dana?
+          New to Jejak Saku?
           <button onClick={onShowRegister} type="button">Create account</button>
         </p>
       </section>

@@ -61,7 +61,7 @@ export default function RegisterPage({ onShowLogin }) {
         <div className="auth-brand">
           <BrandMark />
           <div>
-            <strong>Jejak Dana</strong>
+            <strong>Jejak Saku</strong>
             <small>Access your daily expense workspace.</small>
           </div>
         </div>
@@ -69,7 +69,7 @@ export default function RegisterPage({ onShowLogin }) {
         <div className="auth-heading">
           <p className="section-kicker">Start tracking</p>
           <h1>Create your account</h1>
-          <p>Set up the authentication foundation for your Jejak Dana workspace.</p>
+          <p>Set up the authentication foundation for your Jejak Saku workspace.</p>
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>

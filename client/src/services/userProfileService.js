@@ -49,7 +49,7 @@ async function getAuthenticatedUser() {
   }
 
   if (!data.user) {
-    throw new Error('You must be logged in to use Jejak Dana.');
+    throw new Error('You must be logged in to use Jejak Saku.');
   }
 
   return data.user;
@@ -255,7 +255,7 @@ export async function getCurrentUserProfile() {
     .from('user_profiles')
     .insert({
       auth_user_id: user.id,
-      display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'Jejak Dana User',
+      display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'Jejak Saku User',
       email: user.email
     })
     .select('*')

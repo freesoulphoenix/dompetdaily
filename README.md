@@ -1,13 +1,13 @@
-# Jejak Dana
+# Jejak Saku
 
-Jejak Dana is a daily expense logging app built with React, Vite, vanilla CSS, Node.js, Express, and Supabase.
+Jejak Saku is a daily expense logging app built with React, Vite, vanilla CSS, Node.js, Express, and Supabase.
 
-This repository currently includes the Jejak Dana frontend shell, Supabase Auth foundation, database schema, and an Express API starter.
+This repository currently includes the Jejak Saku frontend shell, Supabase Auth foundation, database schema, and an Express API starter.
 
 ## Project Structure
 
 ```text
-jejakdana/
+jejaksaku/
   package.json
   client/
     .env
@@ -97,7 +97,7 @@ npm run preview
 
 Then verify:
 
-- Chrome DevTools -> Application -> Manifest shows Jejak Dana metadata and icons.
+- Chrome DevTools -> Application -> Manifest shows Jejak Saku metadata and icons.
 - Chrome DevTools -> Application -> Service Workers shows the generated service worker.
 - Android Chrome offers Install app from the browser menu or install prompt.
 - iPhone Safari can use Share -> Add to Home Screen.

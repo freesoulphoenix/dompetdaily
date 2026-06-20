@@ -1,4 +1,4 @@
-# Jejak Dana Supabase Setup
+# Jejak Saku Supabase Setup
 
 ## Apply the Database Schema
 

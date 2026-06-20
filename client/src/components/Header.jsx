@@ -6,7 +6,7 @@ export default function Header({ onLogout, onNavigate, user }) {
       <div className="brand-lockup">
         <BrandMark />
         <div>
-          <strong>Jejak Dana</strong>
+          <strong>Jejak Saku</strong>
           <small>Access your daily expense workspace.</small>
         </div>
       </div>
