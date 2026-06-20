@@ -365,7 +365,15 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
                     <p className="section-kicker">{fileKind === 'pdf' ? 'PDF receipt' : 'Receipt image'}</p>
                     <h2>Scan Receipt</h2>
                   </div>
-                  <button className="text-button" onClick={closeReceiptSheet} type="button">Cancel</button>
+                  <button
+                    aria-label="Close receipt scanner"
+                    className="bottom-sheet-close-button"
+                    onClick={closeReceiptSheet}
+                    title="Close"
+                    type="button"
+                  >
+                    <i className="fi fi-rr-cross-small" aria-hidden="true" />
+                  </button>
                 </div>
 
                 <div className="receipt-scan-actions">

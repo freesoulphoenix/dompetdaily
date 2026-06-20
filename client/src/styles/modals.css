@@ -111,6 +111,24 @@
   font-size: 1.35rem;
 }
 
+.bottom-sheet-close-button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 14px;
+  color: var(--color-muted);
+  background: var(--color-surface-soft);
+  font-size: 1.1rem;
+}
+
+.bottom-sheet-close-button i {
+  display: block;
+  line-height: 1;
+}
+
 .bottom-sheet .modal-actions {
   justify-content: end;
 }
