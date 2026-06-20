@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const isGitHubPages = process.env.GITHUB_PAGES === 'true';
-const appBase = isGitHubPages ? '/dompetdaily/' : '/';
+const appBase = isGitHubPages ? '/jejaksaku/' : '/';
 
 export default defineConfig({
   base: appBase,
