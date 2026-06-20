@@ -26,7 +26,7 @@ export default defineConfig({
         display: 'standalone',
         start_url: appBase,
         scope: appBase,
-        orientation: 'portrait',
+        orientation: 'portrait-primary',
         icons: [
           {
             src: `${appBase}jejaksaku-192x192.png`,

@@ -14,8 +14,19 @@ import './styles/responsive.css';
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
+    <div className="portrait-orientation-guard" role="status">
+      <i className="fi fi-rr-rotate-right" aria-hidden="true" />
+      <strong>Portrait mode required</strong>
+      <span>Rotate your device to continue.</span>
+    </div>
   </React.StrictMode>
 );
+
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+if (isStandalone && window.screen.orientation?.lock) {
+  window.screen.orientation.lock('portrait-primary').catch(() => undefined);
+}
 
 let isReloadingForUpdate = false;
 const hadServiceWorkerController = Boolean(navigator.serviceWorker?.controller);
