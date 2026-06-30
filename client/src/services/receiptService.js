@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient.js';
 import { getCurrentUserProfileId } from './userProfileService.js';
-import { createTransaction } from './transactionService.js';
+import { createTransaction, updateTransaction } from './transactionService.js';
 
 const RECEIPT_BUCKET = 'receipts';
 
@@ -186,6 +186,26 @@ export async function updateReceiptReview(id, receipt) {
 
   if (error) {
     throw error;
+  }
+
+  const { data: linkedTransaction, error: linkedTransactionError } = await client
+    .from('transactions')
+    .select('*')
+    .eq('user_profile_id', userProfileId)
+    .eq('receipt_id', id)
+    .maybeSingle();
+
+  if (linkedTransactionError) {
+    throw linkedTransactionError;
+  }
+
+  if (linkedTransaction) {
+    await updateTransaction(linkedTransaction.id, {
+      ...linkedTransaction,
+      amount: Number(data.total_amount || 0),
+      description: data.merchant_name || linkedTransaction.description || 'Receipt transaction',
+      transaction_date: data.receipt_date || linkedTransaction.transaction_date
+    });
   }
 
   return data;
