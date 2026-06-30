@@ -246,11 +246,9 @@ export default function ReceiptDetailPage({
             </div>
           </form>
 
-          <section className="receipt-line-items">
-            <h3>Line Items</h3>
-            {items.length === 0 ? (
-              <p className="muted-copy">Line item OCR is not connected yet. Merchant, date, and total are available for review.</p>
-            ) : (
+          {items.length > 0 && (
+            <section className="receipt-line-items">
+              <h3>Line Items</h3>
               <div className="receipt-item-list">
                 {items.map((item) => (
                   <span key={item.id}>
@@ -259,8 +257,8 @@ export default function ReceiptDetailPage({
                   </span>
                 ))}
               </div>
-            )}
-          </section>
+            </section>
+          )}
         </article>
 
         <article className="panel">
