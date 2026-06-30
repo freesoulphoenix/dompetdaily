@@ -966,6 +966,11 @@
 
 .activity-search-field input {
   padding-right: 46px;
+  font-style: italic;
+}
+
+.activity-search-field input::placeholder {
+  font-style: italic;
 }
 
 .activity-search-icon {

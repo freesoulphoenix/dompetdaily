@@ -67,21 +67,65 @@ function extractTotal(lines) {
   return candidates[0]?.amount || 0;
 }
 
+function normalizeYear(value) {
+  return value.length === 2 ? `20${value}` : value;
+}
+
+function isValidDateParts(year, month, day) {
+  const currentYear = new Date().getFullYear();
+  const numericYear = Number(year);
+  const numericMonth = Number(month);
+  const numericDay = Number(day);
+
+  if (numericYear < 2000 || numericYear > currentYear || numericMonth < 1 || numericMonth > 12 || numericDay < 1 || numericDay > 31) {
+    return false;
+  }
+
+  const date = new Date(Date.UTC(numericYear, numericMonth - 1, numericDay));
+  return date.getUTCFullYear() === numericYear
+    && date.getUTCMonth() === numericMonth - 1
+    && date.getUTCDate() === numericDay;
+}
+
+function formatDateParts(year, month, day) {
+  if (!isValidDateParts(year, month, day)) {
+    return '';
+  }
+
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function parseNumericReceiptDate(first, second, rawYear) {
+  const year = normalizeYear(rawYear);
+  const firstNumber = Number(first);
+  const secondNumber = Number(second);
+  let day = first;
+  let month = second;
+
+  if (firstNumber <= 12 && secondNumber > 12) {
+    month = first;
+    day = second;
+  }
+
+  return formatDateParts(year, month, day);
+}
+
 function extractDate(lines) {
   const text = lines.join(' ');
   const numericDate = text.match(/\b(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})\b/);
 
   if (numericDate) {
-    const day = numericDate[1].padStart(2, '0');
-    const month = numericDate[2].padStart(2, '0');
-    const year = numericDate[3].length === 2 ? `20${numericDate[3]}` : numericDate[3];
-    return `${year}-${month}-${day}`;
+    const date = parseNumericReceiptDate(numericDate[1], numericDate[2], numericDate[3]);
+
+    if (date) {
+      return date;
+    }
   }
 
   const isoDate = text.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
 
   if (isoDate) {
-    return `${isoDate[1]}-${isoDate[2].padStart(2, '0')}-${isoDate[3].padStart(2, '0')}`;
+    return formatDateParts(isoDate[1], isoDate[2], isoDate[3]);
   }
 
   const monthNumbers = {
@@ -130,9 +174,8 @@ function extractDate(lines) {
     const day = (dayFirstDate ? match[1] : match[2]).padStart(2, '0');
     const monthName = (dayFirstDate ? match[2] : match[1]).toLowerCase();
     const month = String(monthNumbers[monthName]).padStart(2, '0');
-    const rawYear = match[3];
-    const year = rawYear.length === 2 ? `20${rawYear}` : rawYear;
-    return `${year}-${month}-${day}`;
+    const year = normalizeYear(match[3]);
+    return formatDateParts(year, month, day);
   }
 
   return '';
@@ -168,7 +211,8 @@ export async function runReceiptOcr(receipt) {
 
   try {
     worker = await createWorker('eng');
-    const result = await worker.recognize(receipt.image_url);
+    const imageSource = await getOcrImageSource(receipt.image_url);
+    const result = await worker.recognize(imageSource);
     const extracted = extractReceiptFields(result.data.text || '');
 
     if (!extracted.merchant_name && !extracted.receipt_date && !extracted.total_amount) {

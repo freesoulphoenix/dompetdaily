@@ -3,6 +3,38 @@ import { findSmartMatch } from '../services/matchingService.js';
 import { getCategoryOptions } from '../utils/categoryOptions.js';
 import { formatCurrency, parseCurrencyInput } from '../utils/format.js';
 
+const datePickerMin = '2000-01-01';
+const datePickerMax = `${new Date().getFullYear()}-12-31`;
+
+function getReceiptErrorMessage(error, fallback) {
+  const message = error?.message || '';
+
+  if (/date\/time field value out of range|invalid input syntax for type date|date format/i.test(message)) {
+    return 'Date Format is invalid';
+  }
+
+  return message || fallback;
+}
+
+function isValidReceiptDate(value) {
+  if (!value) {
+    return true;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return year >= 2000
+    && year <= new Date().getFullYear()
+    && date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day;
+}
+
 export default function ReceiptDetailPage({
   accounts = [],
   categories = [],
@@ -54,9 +86,13 @@ export default function ReceiptDetailPage({
     setSaving(true);
 
     try {
+      if (!isValidReceiptDate(form.receipt_date)) {
+        throw new Error('Date Format is invalid');
+      }
+
       await onSaveReview(receipt.id, form);
     } catch (err) {
-      setError(err.message || 'Unable to save receipt review.');
+      setError(getReceiptErrorMessage(err, 'Unable to save receipt review.'));
     } finally {
       setSaving(false);
     }
@@ -68,6 +104,10 @@ export default function ReceiptDetailPage({
     setCreatingTransaction(true);
 
     try {
+      if (!isValidReceiptDate(form.receipt_date)) {
+        throw new Error('Date Format is invalid');
+      }
+
       const match = await findSmartMatch({
         account_id: transactionForm.account_id,
         amount: form.total_amount,
@@ -85,7 +125,7 @@ export default function ReceiptDetailPage({
 
       await onCreateTransaction(receipt.id, transactionForm);
     } catch (err) {
-      setError(err.message || 'Unable to create transaction from receipt.');
+      setError(getReceiptErrorMessage(err, 'Unable to create transaction from receipt.'));
     } finally {
       setCreatingTransaction(false);
     }
@@ -181,6 +221,8 @@ export default function ReceiptDetailPage({
             <label className="field-group">
               Receipt Date
               <input
+                max={datePickerMax}
+                min={datePickerMin}
                 onChange={(event) => updateField('receipt_date', event.target.value)}
                 type="date"
                 value={form.receipt_date}

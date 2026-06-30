@@ -232,6 +232,9 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
   }
 
   async function handleIncomingReceiptFile(file) {
+    resetUploadState();
+    setSelectedReceipt(null);
+
     const fileName = file?.name?.toLowerCase() || '';
     const fileType = file?.type?.toLowerCase() || '';
     const kind = fileName.endsWith('.pdf') || fileType === 'application/pdf'
@@ -249,6 +252,7 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
 
   function openNativeReceiptPicker() {
     resetUploadState();
+    setSelectedReceipt(null);
     receiptInputRef.current?.click();
   }
 
