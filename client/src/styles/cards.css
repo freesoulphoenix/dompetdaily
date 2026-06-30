@@ -973,6 +973,12 @@
   font-style: italic;
 }
 
+.activity-search-field input::-webkit-search-cancel-button,
+.activity-search-field input::-webkit-search-decoration {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
 .activity-search-icon {
   position: absolute;
   top: 50%;
