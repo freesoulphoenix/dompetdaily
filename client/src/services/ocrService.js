@@ -166,8 +166,11 @@ function extractDate(lines) {
   const monthPattern = Object.keys(monthNumbers)
     .sort((first, second) => second.length - first.length)
     .join('|');
-  const dayFirstDate = text.match(new RegExp(`\\b(\\d{1,2})\\s+(${monthPattern})\\s*,?\\s*(\\d{2,4})\\b`, 'i'));
-  const monthFirstDate = text.match(new RegExp(`\\b(${monthPattern})\\s+(\\d{1,2})\\s*,?\\s*(\\d{2,4})\\b`, 'i'));
+  const dateLabelPattern = '(?:waktu|tanggal|tgl|date|transaction\\s*time|jam|printed|cetak)';
+  const labeledDayFirstDate = text.match(new RegExp(`\\b${dateLabelPattern}\\b\\s*[:\\-]?\\s*(\\d{1,2})\\s+(${monthPattern})\\s*,?\\s*(\\d{2,4})\\b`, 'i'));
+  const labeledMonthFirstDate = text.match(new RegExp(`\\b${dateLabelPattern}\\b\\s*[:\\-]?\\s*(${monthPattern})\\s+(\\d{1,2})\\s*,?\\s*(\\d{2,4})\\b`, 'i'));
+  const dayFirstDate = labeledDayFirstDate || text.match(new RegExp(`\\b(\\d{1,2})\\s+(${monthPattern})\\s*,?\\s*(\\d{2,4})\\b`, 'i'));
+  const monthFirstDate = labeledMonthFirstDate || text.match(new RegExp(`\\b(${monthPattern})\\s+(\\d{1,2})\\s*,?\\s*(\\d{2,4})\\b`, 'i'));
 
   if (dayFirstDate || monthFirstDate) {
     const match = dayFirstDate || monthFirstDate;
