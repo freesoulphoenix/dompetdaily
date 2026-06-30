@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { getCategoryOptions } from '../utils/categoryOptions.js';
 
 const today = new Date().toISOString().slice(0, 10);
+const earliestAllowedDate = '2000-01-01';
 
 function LinkIcon() {
   return (
@@ -271,6 +272,8 @@ export default function AddTransactionModal({
           <label className="field-group">
             Date
             <input
+              max={today}
+              min={earliestAllowedDate}
               onChange={(event) => updateField('transaction_date', event.target.value)}
               required
               type="date"

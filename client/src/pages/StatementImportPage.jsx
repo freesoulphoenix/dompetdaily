@@ -21,6 +21,9 @@ import { createTransaction } from '../services/transactionService.js';
 import { linkDuePayment } from '../services/upcomingDueService.js';
 import { getCategoryOptions } from '../utils/categoryOptions.js';
 import { formatCurrency } from '../utils/format.js';
+
+const today = new Date().toISOString().slice(0, 10);
+const earliestAllowedDate = '2000-01-01';
 import { resolveMoneyDirection } from '../utils/transactionDirection.js';
 
 const allowedExtensions = ['pdf', 'csv', 'xlsx'];
@@ -818,6 +821,8 @@ export default function StatementImportPage() {
                       <label className="field-group">
                         Date
                         <input
+                          max={today}
+                          min={earliestAllowedDate}
                           onChange={(event) => updateRowLocal(row.id, 'transaction_date', event.target.value)}
                           type="date"
                           value={row.transaction_date || ''}

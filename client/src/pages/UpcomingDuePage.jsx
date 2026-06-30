@@ -8,6 +8,7 @@ import { getCategoryOptions } from '../utils/categoryOptions.js';
 import { formatCurrency } from '../utils/format.js';
 
 const today = new Date().toISOString().slice(0, 10);
+const dueDateMax = `${new Date().getFullYear() + 10}-12-31`;
 
 function FlatIcon({ name }) {
   const commonProps = {
@@ -507,6 +508,8 @@ export default function UpcomingDuePage() {
             <label className="field-group">
               Due Date
               <input
+                max={dueDateMax}
+                min={today}
                 onChange={(event) => updateField('due_date', event.target.value)}
                 required
                 type="date"

@@ -3,8 +3,8 @@ import { findSmartMatch } from '../services/matchingService.js';
 import { getCategoryOptions } from '../utils/categoryOptions.js';
 import { formatCurrency, parseCurrencyInput } from '../utils/format.js';
 
-const datePickerMin = '2000-01-01';
-const datePickerMax = `${new Date().getFullYear()}-12-31`;
+const today = new Date().toISOString().slice(0, 10);
+const earliestAllowedDate = '2000-01-01';
 
 function getReceiptErrorMessage(error, fallback) {
   const message = error?.message || '';
@@ -221,8 +221,8 @@ export default function ReceiptDetailPage({
             <label className="field-group">
               Receipt Date
               <input
-                max={datePickerMax}
-                min={datePickerMin}
+                max={today}
+                min={earliestAllowedDate}
                 onChange={(event) => updateField('receipt_date', event.target.value)}
                 type="date"
                 value={form.receipt_date}
