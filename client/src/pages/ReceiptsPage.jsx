@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import ReceiptDetailPage from './ReceiptDetailPage.jsx';
 import { getAccounts } from '../services/accountService.js';
@@ -68,6 +68,7 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
   const [categories, setCategories] = useState([]);
   const [projectTags, setProjectTags] = useState([]);
   const [defaultAccountId, setDefaultAccountId] = useState('');
+  const [receiptSearchTerm, setReceiptSearchTerm] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [previewUrl, setPreviewUrl] = useState('');
   const [conversionNote, setConversionNote] = useState('');
@@ -102,6 +103,27 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
       if (!background) setLoading(false);
     }
   }
+
+  const filteredReceipts = useMemo(() => {
+    const normalizedSearch = receiptSearchTerm.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return receipts;
+    }
+
+    return receipts.filter((receipt) => {
+      const retentionText = getReceiptRetentionText(receipt);
+      const haystack = [
+        receipt.merchant_name,
+        receipt.receipt_date,
+        receipt.processing_status,
+        receipt.total_amount,
+        retentionText
+      ].filter(Boolean).join(' ').toLowerCase();
+
+      return haystack.includes(normalizedSearch);
+    });
+  }, [receiptSearchTerm, receipts]);
 
   useEffect(() => {
     loadReceipts();
@@ -350,6 +372,21 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
 
       {error && <p className="form-message error">{error}</p>}
 
+      <section className="receipt-search-panel">
+        <label className="activity-search-field">
+          <input
+            aria-label="Search scanned receipts"
+            onChange={(event) => setReceiptSearchTerm(event.target.value)}
+            placeholder="Search scanned receipts"
+            type="search"
+            value={receiptSearchTerm}
+          />
+          <span className="activity-search-icon">
+            <i className="fi fi-rr-search" aria-hidden="true" />
+          </span>
+        </label>
+      </section>
+
       <input
         accept={acceptedReceiptTypes}
         className="visually-hidden-file"
@@ -431,8 +468,16 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
         </section>
       )}
 
+      {!loading && receipts.length > 0 && filteredReceipts.length === 0 && (
+        <section className="empty-state">
+          <div className="empty-icon">RC</div>
+          <h2>No matching receipts</h2>
+          <p>Try a merchant, date, status, amount, or file retention keyword.</p>
+        </section>
+      )}
+
       <section className="receipt-grid">
-        {receipts.map((receipt) => {
+        {filteredReceipts.map((receipt) => {
           const fileAvailable = isStoredFileAvailable(receipt);
           const retentionText = getReceiptRetentionText(receipt);
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext.jsx';
 import { getAccounts } from '../services/accountService.js';
 import { createCategory, deleteCategory, getCategories, updateCategory, updateCategoryOrder } from '../services/categoryService.js';
+import { createProjectTag, deleteProjectTag, getProjectTags, updateProjectTag } from '../services/projectTagService.js';
 import { getCurrentUserProfile, updateCurrentUserDefaultAccount } from '../services/userProfileService.js';
 
 const emptyCategoryForm = {
@@ -9,6 +10,11 @@ const emptyCategoryForm = {
   name: '',
   type: 'expense',
   parent_category_id: ''
+};
+
+const emptyProjectTagForm = {
+  id: null,
+  name: ''
 };
 
 const appVersion = '0.1.0';
@@ -59,6 +65,10 @@ function FlatIcon({ name }) {
 
   if (name === 'trash') {
     return <svg {...commonProps}><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M6 7l1 14h10l1-14" /><path d="M9 7V4h6v3" /></svg>;
+  }
+
+  if (name === 'tag') {
+    return <svg {...commonProps}><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" /><path d="M7.5 7.5h.01" /></svg>;
   }
 
   if (name === 'plus') {
@@ -131,10 +141,15 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
   const [accounts, setAccounts] = useState([]);
   const [currentProfile, setCurrentProfile] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [projectTags, setProjectTags] = useState([]);
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm);
+  const [projectTagForm, setProjectTagForm] = useState(emptyProjectTagForm);
   const [categoryMessage, setCategoryMessage] = useState('');
   const [categoryError, setCategoryError] = useState('');
+  const [projectTagMessage, setProjectTagMessage] = useState('');
+  const [projectTagError, setProjectTagError] = useState('');
   const [isSavingCategory, setIsSavingCategory] = useState(false);
+  const [isSavingProjectTag, setIsSavingProjectTag] = useState(false);
   const [isSavingDefaultAccount, setIsSavingDefaultAccount] = useState(false);
   const [defaultAccountMessage, setDefaultAccountMessage] = useState('');
   const [defaultAccountError, setDefaultAccountError] = useState('');
@@ -191,13 +206,15 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
 
   async function loadSettingsData() {
     try {
-      const [accountData, categoryData, profileData] = await Promise.all([
+      const [accountData, categoryData, projectTagData, profileData] = await Promise.all([
         getAccounts(),
         getCategories(),
+        getProjectTags(),
         getCurrentUserProfile()
       ]);
       setAccounts(accountData || []);
       setCategories(categoryData || []);
+      setProjectTags(projectTagData || []);
       setCurrentProfile(profileData || null);
     } catch (error) {
       setCategoryError(error.message);
@@ -210,6 +227,15 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
       setCategories(data || []);
     } catch (error) {
       setCategoryError(error.message);
+    }
+  }
+
+  async function loadProjectTags() {
+    try {
+      const data = await getProjectTags();
+      setProjectTags(data || []);
+    } catch (error) {
+      setProjectTagError(error.message);
     }
   }
 
@@ -229,6 +255,70 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
       setIsSavingDefaultAccount(false);
     }
   }
+
+  function editProjectTag(tag) {
+    setProjectTagForm({
+      id: tag.id,
+      name: tag.name
+    });
+    setProjectTagMessage('');
+    setProjectTagError('');
+  }
+
+  function resetProjectTagForm() {
+    setProjectTagForm(emptyProjectTagForm);
+  }
+
+  async function saveProjectTag(event) {
+    event.preventDefault();
+    setProjectTagMessage('');
+    setProjectTagError('');
+
+    if (!projectTagForm.name.trim()) {
+      setProjectTagError('Project tag name is required.');
+      return;
+    }
+
+    setIsSavingProjectTag(true);
+
+    try {
+      if (projectTagForm.id) {
+        await updateProjectTag(projectTagForm.id, projectTagForm.name);
+        setProjectTagMessage('Project tag updated.');
+      } else {
+        await createProjectTag(projectTagForm.name);
+        setProjectTagMessage('Project tag added.');
+      }
+
+      resetProjectTagForm();
+      await loadProjectTags();
+    } catch (error) {
+      setProjectTagError(error.message || 'Unable to save project tag.');
+    } finally {
+      setIsSavingProjectTag(false);
+    }
+  }
+
+  async function removeProjectTag(tag) {
+    if (!window.confirm(`Delete project tag "${tag.name}"? Existing transactions will keep their data but lose this tag.`)) {
+      return;
+    }
+
+    setProjectTagMessage('');
+    setProjectTagError('');
+
+    try {
+      await deleteProjectTag(tag.id);
+      await loadProjectTags();
+      setProjectTagMessage('Project tag deleted.');
+      if (projectTagForm.id === tag.id) {
+        resetProjectTagForm();
+      }
+    } catch (error) {
+      setProjectTagError(error.message || 'Unable to delete project tag.');
+    }
+  }
+
 
   function updateCategoryForm(field, value) {
     setCategoryForm((current) => ({
@@ -716,6 +806,52 @@ export default function SettingsPage({ onDeleteAccount, onLogout, user }) {
           <button className="secondary-button small-action" onClick={openCategoryManager} type="button">
             Add / remove categories
           </button>
+        </article>
+
+        <article className="panel">
+          <div className="settings-panel-title">
+            <span className="settings-flat-icon"><FlatIcon name="tag" /></span>
+            <h2>Project Tags</h2>
+          </div>
+          <p className="muted-copy">Create and rename project labels used in transactions, receipts, imports, and reports.</p>
+          <form className="project-tag-form" onSubmit={saveProjectTag}>
+            <label className="field-group">
+              Tag name
+              <input
+                onChange={(event) => setProjectTagForm((current) => ({ ...current, name: event.target.value }))}
+                placeholder="Daily Life"
+                value={projectTagForm.name}
+              />
+            </label>
+            <div className="button-row compact">
+              <button className="primary-button small-action" disabled={isSavingProjectTag} type="submit">
+                {projectTagForm.id ? 'Save Tag' : 'Add Tag'}
+              </button>
+              {projectTagForm.id && (
+                <button className="secondary-button small-action" disabled={isSavingProjectTag} onClick={resetProjectTagForm} type="button">
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
+          {projectTagError && <p className="form-message error compact-message">{projectTagError}</p>}
+          {projectTagMessage && <p className="form-message success compact-message">{projectTagMessage}</p>}
+          <div className="project-tag-list">
+            {projectTags.length === 0 && <p className="muted-copy category-empty-copy">No project tags yet.</p>}
+            {projectTags.map((tag) => (
+              <div className="project-tag-row" key={tag.id}>
+                <span>{tag.name}</span>
+                <div className="project-tag-actions">
+                  <button aria-label={`Edit ${tag.name}`} className="category-icon-button" onClick={() => editProjectTag(tag)} type="button">
+                    <FlatIcon name="edit" />
+                  </button>
+                  <button aria-label={`Delete ${tag.name}`} className="category-icon-button danger" onClick={() => removeProjectTag(tag)} type="button">
+                    <FlatIcon name="trash" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </article>
 
         <article className="panel">

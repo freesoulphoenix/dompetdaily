@@ -696,3 +696,38 @@ textarea:focus {
   margin: 0;
   font-size: 0.8rem;
 }
+
+
+.project-tag-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.project-tag-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.project-tag-row {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid #eef4fb;
+  color: var(--color-text);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.project-tag-row:last-child {
+  border-bottom: 0;
+}
+
+.project-tag-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
