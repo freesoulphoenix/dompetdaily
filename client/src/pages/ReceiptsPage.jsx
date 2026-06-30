@@ -63,6 +63,7 @@ function getReceiptRetentionText(receipt) {
 
 export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed }) {
   const receiptInputRef = useRef(null);
+  const receiptSearchInputRef = useRef(null);
   const [receipts, setReceipts] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -348,6 +349,11 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
     await loadReceipts();
   }
 
+  function clearReceiptSearch() {
+    setReceiptSearchTerm('');
+    receiptSearchInputRef.current?.focus();
+  }
+
   if (selectedReceipt) {
     return (
       <ReceiptDetailPage
@@ -382,9 +388,21 @@ export default function ReceiptsPage({ pendingReceiptFile, onReceiptFileConsumed
             aria-label="Search scanned receipts"
             onChange={(event) => setReceiptSearchTerm(event.target.value)}
             placeholder="Search scanned receipts"
+            ref={receiptSearchInputRef}
             type="search"
             value={receiptSearchTerm}
           />
+          {receiptSearchTerm && (
+            <button
+              aria-label="Clear search"
+              className="activity-search-clear"
+              onClick={clearReceiptSearch}
+              onMouseDown={(event) => event.preventDefault()}
+              type="button"
+            >
+              ×
+            </button>
+          )}
           <span className="activity-search-icon">
             <i className="fi fi-rr-search" aria-hidden="true" />
           </span>

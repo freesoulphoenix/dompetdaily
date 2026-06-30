@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useRefreshOnResume from '../hooks/useRefreshOnResume.js';
 import AddTransactionModal from '../components/AddTransactionModal.jsx';
 import TransactionList from '../components/TransactionList.jsx';
@@ -66,6 +66,7 @@ export default function TransactionsPage({ onNavigate }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const searchInputRef = useRef(null);
 
   const loadPageData = useCallback(async function loadPageData(background = false) {
     setError('');
@@ -223,6 +224,11 @@ export default function TransactionsPage({ onNavigate }) {
     setEditingTransaction(refreshedTransaction || null);
   }
 
+  function clearSearch() {
+    setSearchTerm('');
+    searchInputRef.current?.focus();
+  }
+
   return (
     <div className="page-stack activity-page">
       <section className="page-heading activity-page-heading">
@@ -249,9 +255,21 @@ export default function TransactionsPage({ onNavigate }) {
           <input
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Search transactions"
+            ref={searchInputRef}
             type="search"
             value={searchTerm}
           />
+          {searchTerm && (
+            <button
+              aria-label="Clear search"
+              className="activity-search-clear"
+              onClick={clearSearch}
+              onMouseDown={(event) => event.preventDefault()}
+              type="button"
+            >
+              ×
+            </button>
+          )}
           <span className="activity-search-icon">
             <FlatIcon name="search" />
           </span>
