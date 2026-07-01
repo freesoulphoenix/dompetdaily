@@ -30,6 +30,23 @@ const today = getLocalIsoDate();
 const allowedExtensions = ['pdf', 'csv', 'xls', 'xlsx'];
 const activeStatuses = new Set(['pending', 'needs_review']);
 const processedStatuses = new Set(['imported', 'ignored', 'duplicate']);
+const importSuggestionRules = [
+  {
+    category: ['Subscription', 'Media Streaming'],
+    keywords: ['netflix', 'disney+', 'disney plus', 'vidio', 'spotify', 'apple music', 'youtube premium'],
+    projectTag: 'Daily Life'
+  },
+  {
+    category: ['Subscription', 'Cloud Storage'],
+    keywords: ['icloud', 'google storage', 'google one', 'dropbox', 'onedrive'],
+    projectTag: 'Daily Life'
+  },
+  {
+    category: ['Subscription', 'Apps & Software'],
+    keywords: ['adobe', 'creative cloud', 'canva', 'figma', 'microsoft 365', 'office 365'],
+    projectTag: 'Business'
+  }
+];
 
 function getFileType(file) {
   return file.name.split('.').pop()?.toLowerCase() || '';
@@ -69,6 +86,10 @@ function getFileRetentionText(item) {
   }
 
   return '';
+}
+
+function normalizeSuggestionText(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9+]+/g, ' ').trim();
 }
 
 export default function StatementImportPage() {
@@ -309,14 +330,70 @@ export default function StatementImportPage() {
     setSelectedIds(new Set(rows.map((row) => row.id)));
   }
 
+  function findCategoryByPath(parentName, childName) {
+    const parent = categories.find((category) => (
+      !category.parent_category_id
+      && category.type === 'expense'
+      && category.name.toLowerCase() === parentName.toLowerCase()
+    ));
+
+    if (!parent) {
+      return null;
+    }
+
+    return categories.find((category) => (
+      category.parent_category_id === parent.id
+      && category.type === 'expense'
+      && category.name.toLowerCase() === childName.toLowerCase()
+    )) || parent;
+  }
+
+  function findProjectTagByName(name) {
+    return projectTags.find((tag) => tag.name.toLowerCase() === name.toLowerCase()) || null;
+  }
+
+  function getImportSuggestions(row) {
+    if (row.transaction_type !== 'expense') {
+      return {};
+    }
+
+    const description = normalizeSuggestionText([
+      row.raw_description,
+      row.clean_description,
+      row.description
+    ].filter(Boolean).join(' '));
+    const rule = importSuggestionRules.find((item) => (
+      item.keywords.some((keyword) => description.includes(normalizeSuggestionText(keyword)))
+    ));
+
+    if (!rule) {
+      return {};
+    }
+
+    const [parentName, childName] = rule.category;
+    const category = findCategoryByPath(parentName, childName);
+    const projectTag = findProjectTagByName(rule.projectTag);
+
+    return {
+      category_id: category?.id || null,
+      project_tag_id: projectTag?.id || null
+    };
+  }
+
   function getRowsWithSourceAccount(rows, importSourceName = sourceName) {
     const sourceAccount = sourceAccounts.find((account) => account.name === importSourceName);
     const fallbackAccount = sourceAccount || defaultAccount;
 
-    return rows.map((row) => ({
-      ...row,
-      account_id: row.account_id || fallbackAccount?.id || null
-    }));
+    return rows.map((row) => {
+      const suggestions = getImportSuggestions(row);
+
+      return {
+        ...row,
+        account_id: row.account_id || fallbackAccount?.id || null,
+        category_id: row.category_id || suggestions.category_id || null,
+        project_tag_id: row.project_tag_id || suggestions.project_tag_id || null
+      };
+    });
   }
 
   async function openImportPreview(statementImport) {
