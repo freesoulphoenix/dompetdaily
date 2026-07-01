@@ -298,6 +298,15 @@ function chooseBestRows(rowGroups) {
     ))[0] || [];
 }
 
+function chooseMostRows(rowGroups) {
+  return rowGroups
+    .filter((rows) => rows.length > 0)
+    .sort((first, second) => (
+      second.length - first.length
+      || getRowsScore(second) - getRowsScore(first)
+    ))[0] || [];
+}
+
 function buildValidIsoDate(year, month, day) {
   const numericYear = Number(year);
   const numericMonth = Number(month);
@@ -651,10 +660,36 @@ async function parseXlsxFile(file) {
   workbooks.forEach((workbook) => {
     workbook.SheetNames.forEach((sheetName) => {
       const worksheet = workbook.Sheets[sheetName];
+      const displayedObjectRows = XLSX.utils.sheet_to_json(worksheet, {
+        blankrows: false,
+        defval: '',
+        raw: false
+      });
+
+      try {
+        const parsedDisplayedRows = parseObjectRows(displayedObjectRows);
+
+        if (parsedDisplayedRows.length > 0) {
+          parsedRowGroups.push(parsedDisplayedRows);
+        }
+      } catch (error) {
+        parseErrors.push(error);
+      }
+    });
+  });
+
+  const displayedRows = chooseMostRows(parsedRowGroups);
+
+  if (displayedRows.length > 0) {
+    return displayedRows;
+  }
+
+  workbooks.forEach((workbook) => {
+    workbook.SheetNames.forEach((sheetName) => {
+      const worksheet = workbook.Sheets[sheetName];
 
       [
         { raw: true },
-        { raw: false }
       ].forEach(({ raw }) => {
         const objectRows = XLSX.utils.sheet_to_json(worksheet, {
           blankrows: false,
