@@ -89,7 +89,7 @@
   }
 
   .main-content {
-    padding: 14px 12px calc(168px + env(safe-area-inset-bottom));
+    padding: 14px 12px calc(150px + env(safe-area-inset-bottom));
   }
 
   .page-stack {
@@ -327,31 +327,6 @@
   }
 }
 
-@media (max-width: 767px) {
-  .main-content {
-    padding: 14px 12px calc(150px + env(safe-area-inset-bottom));
-  }
-
-  .form-grid,
-  .filter-panel,
-  .category-manager-form,
-  .category-manager-form.compact,
-  .statement-row-editor,
-  .report-filter-panel {
-    grid-template-columns: 1fr;
-  }
-
-  .stat-grid,
-  .account-grid,
-  .due-grid,
-  .receipt-grid,
-  .settings-grid,
-  .content-grid,
-  .receipt-detail-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (min-width: 768px) {
   .sidebar,
   .quick-actions {
@@ -406,26 +381,6 @@
 
   .page-heading h1 {
     font-size: 1.85rem;
-  }
-
-  .hero-metrics {
-    grid-template-columns: 1fr;
-  }
-
-  .transaction-row,
-  .due-item {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .transaction-meta,
-  .due-meta {
-    grid-column: 2;
-    justify-items: start;
-    text-align: left;
-  }
-
-  .mobile-scan-actions {
-    grid-template-columns: 1fr;
   }
 
   .mobile-nav {

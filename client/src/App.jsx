@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
 import { LanguageProvider } from './contexts/LanguageContext.jsx';
 import AppLayout from './components/AppLayout.jsx';
@@ -24,21 +24,6 @@ const accounts = [
   { id: 'gopay', name: 'GoPay', type: 'E-Wallet', balance: 320000 },
   { id: 'shopee', name: 'Shopee PayLater', type: 'PayLater', balance: -1250000 },
   { id: 'indodana', name: 'Indodana Pinjam', type: 'Loan', balance: -5400000 }
-];
-
-const transactions = [
-  { id: 'tx1', type: 'expense', title: 'Kopi Kenangan', category: 'Food & Drink', account: 'GoPay', amount: -45000, date: 'Today' },
-  { id: 'tx2', type: 'expense', title: 'GoRide ke kantor', category: 'Transport', account: 'GoPay', amount: -28000, date: 'Today' },
-  { id: 'tx3', type: 'expense', title: 'Belanja mingguan', category: 'Groceries', account: 'BCA', amount: -312000, date: 'Yesterday' },
-  { id: 'tx4', type: 'income', title: 'Salary', category: 'Income', account: 'BCA', amount: 12000000, date: '2 days ago' },
-  { id: 'tx5', type: 'transfer', title: 'Top up GoPay', category: 'Transfer', account: 'BCA to GoPay', amount: 500000, date: '3 days ago' }
-];
-
-const reports = [
-  { label: 'Food & Drink', value: 420000, color: '#2196f3' },
-  { label: 'Transport', value: 185000, color: '#26c6da' },
-  { label: 'Groceries', value: 612000, color: '#64b5f6' },
-  { label: 'Bills', value: 1221000, color: '#7986cb' }
 ];
 
 const pageMap = {
@@ -142,22 +127,6 @@ function ProtectedApp() {
   const [hasAcknowledgedSafety, setHasAcknowledgedSafety] = useState(false);
   const ActivePage = pageMap[activePage] || DashboardPage;
 
-  const summary = useMemo(() => {
-    const assets = accounts.filter((account) => account.balance > 0).reduce((sum, account) => sum + account.balance, 0);
-    const debt = Math.abs(accounts.filter((account) => account.balance < 0).reduce((sum, account) => sum + account.balance, 0));
-    const monthSpend = Math.abs(transactions.filter((transaction) => transaction.type === 'expense').reduce((sum, transaction) => sum + transaction.amount, 0));
-    const monthIncome = transactions.filter((transaction) => transaction.type === 'income').reduce((sum, transaction) => sum + transaction.amount, 0);
-
-    return {
-      assets,
-      debt,
-      netWorth: assets - debt,
-      monthSpend,
-      monthIncome,
-      dueThisMonth: 0
-    };
-  }, []);
-
   function handleMobileReceiptScan(file) {
     setPendingReceiptFile({
       file,
@@ -250,12 +219,7 @@ function ProtectedApp() {
       onScanReceipt={handleMobileReceiptScan}
     >
       <ActivePage
-        accounts={accounts}
-        reports={reports}
-        summary={summary}
-        transactions={transactions}
         onNavigate={setActivePage}
-        onAddTransaction={() => setIsAddOpen(true)}
         onDeleteAccount={deleteAccount}
         onLogout={logout}
         pendingReceiptFile={activePage === 'receipts' ? pendingReceiptFile : null}
