@@ -52,7 +52,7 @@ function normalizeOcrText(value) {
 }
 
 function getCurrencyMatches(line) {
-  return line.match(/(?:rp\s*)?\d[\d.,]*/gi) || [];
+  return line.match(/(?:rp\s*)?(?:\d{1,3}(?:[.,\s]\d{3})+|\d+)(?:[.,]\d{2})?/gi) || [];
 }
 
 function isLikelyReceiptAmount(amount) {
@@ -91,6 +91,22 @@ function addAmountCandidates(candidates, line, index, score) {
   });
 }
 
+function getAmountCandidateValue(line) {
+  const amounts = getCurrencyMatches(line)
+    .map(parseCurrencyValue)
+    .filter(isLikelyReceiptAmount);
+
+  return amounts.length ? Math.max(...amounts) : 0;
+}
+
+function getLastAmountCandidateValue(line) {
+  const amounts = getCurrencyMatches(line)
+    .map(parseCurrencyValue)
+    .filter(isLikelyReceiptAmount);
+
+  return amounts.at(-1) || 0;
+}
+
 function extractTotal(lines) {
   const candidates = [];
 
@@ -101,11 +117,35 @@ function extractTotal(lines) {
     const positionScore = index / Math.max(lines.length - 1, 1);
 
     if (hasTotal && !ignored) {
-      addAmountCandidates(candidates, line, index, 80 + positionScore);
+      const totalAmount = getAmountCandidateValue(line);
+
+      if (totalAmount) {
+        candidates.push({
+          amount: totalAmount,
+          index,
+          score: 90 + positionScore
+        });
+      }
 
       if (getCurrencyMatches(line).length === 0) {
-        addAmountCandidates(candidates, lines[index + 1] || '', index + 1, 72 + positionScore);
-        addAmountCandidates(candidates, lines[index + 2] || '', index + 2, 64 + positionScore);
+        const nextLineAmount = getLastAmountCandidateValue(lines[index + 1] || '');
+        const followingLineAmount = getLastAmountCandidateValue(lines[index + 2] || '');
+
+        if (nextLineAmount) {
+          candidates.push({
+            amount: nextLineAmount,
+            index: index + 1,
+            score: 72 + positionScore
+          });
+        }
+
+        if (followingLineAmount) {
+          candidates.push({
+            amount: followingLineAmount,
+            index: index + 2,
+            score: 64 + positionScore
+          });
+        }
       }
 
       return;
@@ -172,23 +212,56 @@ function parseNumericReceiptDate(first, second, rawYear) {
   return formatDateParts(year, month, day);
 }
 
-function extractDate(lines) {
-  const text = lines.join(' ');
-  const numericDate = text.match(/\b(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})\b/);
+function parseNumericDateByOrder(match, order = 'local') {
+  if (!match) {
+    return '';
+  }
 
-  if (numericDate) {
-    const date = parseNumericReceiptDate(numericDate[1], numericDate[2], numericDate[3]);
+  if (match[1].length === 4) {
+    return formatDateParts(match[1], match[2], match[3]);
+  }
 
-    if (date) {
-      return date;
+  const year = match[3];
+
+  if (order === 'month-first') {
+    return formatDateParts(normalizeYear(year), match[1], match[2]);
+  }
+
+  return parseNumericReceiptDate(match[1], match[2], year);
+}
+
+function getNumericDateMatches(value) {
+  return [...String(value || '').matchAll(/(?<!\d)(\d{1,4})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*(\d{2,4})(?!\d)/g)];
+}
+
+function extractNumericDate(lines) {
+  const dateLabelPattern = /\b(waktu|tanggal|tgl|date|transaction\s*time|jam|printed|cetak)\b/i;
+  const labeledLine = lines.find((line) => dateLabelPattern.test(line) && getNumericDateMatches(line).length);
+
+  if (labeledLine) {
+    const labeledDate = getNumericDateMatches(labeledLine)
+      .map((match) => parseNumericDateByOrder(match, 'local'))
+      .find(Boolean);
+
+    if (labeledDate) {
+      return labeledDate;
     }
   }
 
-  const isoDate = text.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+  const allText = lines.join(' ');
+  const localDate = getNumericDateMatches(allText)
+    .map((match) => parseNumericDateByOrder(match, 'local'))
+    .find(Boolean);
 
-  if (isoDate) {
-    return formatDateParts(isoDate[1], isoDate[2], isoDate[3]);
+  if (localDate) {
+    return localDate;
   }
+
+  return '';
+}
+
+function extractTextDate(lines) {
+  const text = lines.join(' ');
 
   const monthNumbers = {
     jan: 1,
@@ -244,6 +317,10 @@ function extractDate(lines) {
   }
 
   return '';
+}
+
+function extractDate(lines) {
+  return extractNumericDate(lines) || extractTextDate(lines);
 }
 
 async function loadImage(url) {
