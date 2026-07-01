@@ -309,6 +309,16 @@ export default function StatementImportPage() {
     setSelectedIds(new Set(rows.map((row) => row.id)));
   }
 
+  function getRowsWithSourceAccount(rows, importSourceName = sourceName) {
+    const sourceAccount = sourceAccounts.find((account) => account.name === importSourceName);
+    const fallbackAccount = sourceAccount || defaultAccount;
+
+    return rows.map((row) => ({
+      ...row,
+      account_id: row.account_id || fallbackAccount?.id || null
+    }));
+  }
+
   async function openImportPreview(statementImport) {
     setError('');
 
@@ -320,6 +330,50 @@ export default function StatementImportPage() {
       selectRows(rows.filter((row) => row.import_status === 'pending'));
     } catch (err) {
       setError(err.message || 'Unable to open import preview.');
+    }
+  }
+
+  async function reparseImport(statementImport) {
+    if (!statementImport?.file_url || statementImport.file_deleted_at) {
+      setError('The original statement file is no longer available. Upload the file again to parse it.');
+      return;
+    }
+
+    setError('');
+    setSaving(true);
+
+    try {
+      const response = await fetch(statementImport.file_url);
+
+      if (!response.ok) {
+        throw new Error('Unable to download the original statement file for re-parsing.');
+      }
+
+      const blob = await response.blob();
+      const statementFile = new File([blob], statementImport.file_name, {
+        type: blob.type || 'application/octet-stream'
+      });
+      const rows = await parseStatementFile(statementFile, statementImport.bank_name || sourceName || 'Generic PDF');
+
+      if (rows.length === 0) {
+        throw new Error('No transaction rows were found in this statement. Check that the file contains dated debit/credit rows.');
+      }
+
+      const savedRows = await saveImportedTransactions(statementImport.id, getRowsWithSourceAccount(rows, statementImport.bank_name));
+
+      if (savedRows.length === 0) {
+        throw new Error('No new review rows were saved. Delete this upload and import the statement again.');
+      }
+
+      setActiveImport(statementImport);
+      setReviewCollapsed(false);
+      setPreviewRows(savedRows);
+      selectRows(savedRows.filter((row) => row.import_status === 'pending'));
+      await loadImports();
+    } catch (err) {
+      setError(err.message || 'Unable to re-parse this statement.');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -360,13 +414,14 @@ export default function StatementImportPage() {
       const statementImport = await createStatementImport(file, sourceName, {
         fileHash: duplicate.fileHash
       });
-      const sourceAccount = sourceAccounts.find((account) => account.name === sourceName);
-      const fallbackAccount = sourceAccount || defaultAccount;
-      const rowsWithSourceAccount = rows.map((row) => ({
-        ...row,
-        account_id: row.account_id || fallbackAccount?.id || null
-      }));
+      const rowsWithSourceAccount = getRowsWithSourceAccount(rows);
       const savedRows = await saveImportedTransactions(statementImport.id, rowsWithSourceAccount);
+
+      if (savedRows.length === 0) {
+        await deleteStatementImportFile(statementImport);
+        throw new Error('No review rows were saved from this statement. Check that the file contains dated debit/credit rows.');
+      }
+
       setFile(null);
       event.target.reset();
       setActiveImport(statementImport);
@@ -932,7 +987,18 @@ export default function StatementImportPage() {
             })}
           </div>
 
-          {activeRows.length === 0 && <p className="muted-copy">No active rows left in this review queue.</p>}
+          {previewRows.length === 0 ? (
+            <div className="empty-state">
+              <p className="muted-copy">No rows were parsed from this upload.</p>
+              {activeImport.file_url && !activeImport.file_deleted_at && (
+                <button className="secondary-button" disabled={saving} onClick={() => reparseImport(activeImport)} type="button">
+                  {saving ? 'Re-parsing...' : 'Re-parse File'}
+                </button>
+              )}
+            </div>
+          ) : activeRows.length === 0 && (
+            <p className="muted-copy">No active rows left in this review queue.</p>
+          )}
 
           {processedRows.length > 0 && (
             <details className="statement-history-detail">
