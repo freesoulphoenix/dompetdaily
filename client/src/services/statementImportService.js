@@ -3,6 +3,7 @@ import { getCurrentUserProfileId } from './userProfileService.js';
 import { resolveMoneyDirection } from '../utils/transactionDirection.js';
 
 const STATEMENT_BUCKET = 'statements';
+const IMPORTED_TRANSACTION_BATCH_SIZE = 200;
 
 function requireSupabase() {
   if (!supabase) {
@@ -286,21 +287,27 @@ export async function saveImportedTransactions(statementImportId, rows) {
   }
 
   const payload = rows.map((row) => normalizeImportedRow(row, userProfileId, statementImportId));
+  const savedRows = [];
 
-  const { data, error } = await client
-    .from('imported_transactions')
-    .upsert(payload, {
-      onConflict: 'statement_import_id,transaction_date,description,amount',
-      ignoreDuplicates: true
-    })
-    .select('*');
+  for (let index = 0; index < payload.length; index += IMPORTED_TRANSACTION_BATCH_SIZE) {
+    const batch = payload.slice(index, index + IMPORTED_TRANSACTION_BATCH_SIZE);
+    const { data, error } = await client
+      .from('imported_transactions')
+      .upsert(batch, {
+        onConflict: 'statement_import_id,transaction_date,description,amount',
+        ignoreDuplicates: true
+      })
+      .select('*');
 
-  if (error) {
-    throw error;
+    if (error) {
+      throw error;
+    }
+
+    savedRows.push(...(data || []));
   }
 
   await updateStatementImportStatus(statementImportId, 'pending');
-  return data;
+  return savedRows;
 }
 
 export async function updateImportedTransactionStatus(id, importStatus, createdTransactionId = null) {

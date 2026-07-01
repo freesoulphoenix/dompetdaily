@@ -480,7 +480,41 @@ function getDateOrder(header) {
     : 'local';
 }
 
-function objectRowToTransaction(row) {
+function getNumericDateParts(value) {
+  const match = String(value || '').trim().match(/^(\d{1,2})[./-](\d{1,2})[./-]\d{2,4}$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    first: Number(match[1]),
+    second: Number(match[2])
+  };
+}
+
+function inferObjectRowsDateOrder(rows) {
+  for (const row of rows) {
+    const dateKey = findObjectKey(row, ['date', 'tanggal', 'transactiondate', 'tanggaltransaksi', 'tgl', 'tgltransaksi', 'postingdate', 'valuedate']);
+    const parts = getNumericDateParts(dateKey ? row[dateKey] : '');
+
+    if (!parts) {
+      continue;
+    }
+
+    if (parts.first > 12 && parts.second <= 12) {
+      return 'local';
+    }
+
+    if (parts.second > 12 && parts.first <= 12) {
+      return 'month-first';
+    }
+  }
+
+  return '';
+}
+
+function objectRowToTransaction(row, dateOrderOverride = '') {
   const dateKey = findObjectKey(row, ['date', 'tanggal', 'transactiondate', 'tanggaltransaksi', 'tgl', 'tgltransaksi', 'postingdate', 'valuedate']);
   const descriptionKey = findObjectKey(row, ['description', 'keterangan', 'uraian', 'deskripsi', 'merchant', 'remarks', 'transaksi', 'rinciantransaksi', 'berita', 'narrative', 'transactiondescription', 'details', 'detail', 'reference']);
   const debitKey = findObjectKey(row, ['debet', 'debit', 'withdrawal', 'pengeluaran', 'mutasidebet', 'debitamount', 'amountdebit', 'withdrawalamount']);
@@ -491,7 +525,7 @@ function objectRowToTransaction(row) {
     return null;
   }
 
-  const date = normalizeDateWithOrder(row[dateKey], getDateOrder(dateKey));
+  const date = normalizeDateWithOrder(row[dateKey], dateOrderOverride || getDateOrder(dateKey));
   const rawDescription = row[descriptionKey] || 'Imported transaction';
   const debit = debitKey ? parseCurrency(row[debitKey]) : 0;
   const credit = creditKey ? parseCurrency(row[creditKey]) : 0;
@@ -515,9 +549,9 @@ function objectRowToTransaction(row) {
   };
 }
 
-function parseObjectRows(rows) {
+function parseObjectRows(rows, dateOrderOverride = '') {
   return rows
-    .map(objectRowToTransaction)
+    .map((row) => objectRowToTransaction(row, dateOrderOverride))
     .filter(Boolean);
 }
 
@@ -619,32 +653,15 @@ async function parseCsvFile(file) {
 async function parseXlsxFile(file) {
   const XLSX = await import('xlsx');
   const buffer = await file.arrayBuffer();
-  const text = await file.text();
   const parsedRowGroups = [];
   const parseErrors = [];
   const workbooks = [];
-  const textSpreadsheetExport = isTextSpreadsheetExport(text);
-
-  if (textSpreadsheetExport) {
-    try {
-      const htmlRows = parseHtmlTableRows(text);
-      const textRows = htmlRows.length > 0
-        ? htmlRows
-        : text.split(/\r?\n/).filter(Boolean).map(splitDelimitedLine);
-      const parsedTextRows = parseRowsFromMatrix(textRows);
-
-      if (parsedTextRows.length > 0) {
-        return parsedTextRows;
-      }
-    } catch (error) {
-      parseErrors.push(error);
-    }
-  }
+  const binaryData = new Uint8Array(buffer);
 
   [
+    () => XLSX.read(binaryData, { cellDates: false, type: 'array' }),
     () => XLSX.read(buffer, { cellDates: true, type: 'array' }),
-    () => XLSX.read(buffer, { cellDates: false, type: 'array' }),
-    () => XLSX.read(text, { cellDates: true, type: 'string' })
+    () => XLSX.read(buffer, { cellDates: false, type: 'array' })
   ].forEach((readWorkbook) => {
     try {
       const workbook = readWorkbook();
@@ -667,7 +684,10 @@ async function parseXlsxFile(file) {
       });
 
       try {
-        const parsedDisplayedRows = parseObjectRows(displayedObjectRows);
+        const parsedDisplayedRows = parseObjectRows(
+          displayedObjectRows,
+          inferObjectRowsDateOrder(displayedObjectRows)
+        );
 
         if (parsedDisplayedRows.length > 0) {
           parsedRowGroups.push(parsedDisplayedRows);
@@ -727,6 +747,16 @@ async function parseXlsxFile(file) {
       });
     });
   });
+
+  let text = '';
+  let textSpreadsheetExport = false;
+
+  try {
+    text = await file.text();
+    textSpreadsheetExport = isTextSpreadsheetExport(text);
+  } catch (error) {
+    parseErrors.push(error);
+  }
 
   if (textSpreadsheetExport) {
     try {
