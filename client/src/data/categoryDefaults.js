@@ -24,6 +24,10 @@ export const defaultCategoryTree = [
     children: ['Apps & Software', 'Media Streaming', 'Cloud Storage']
   },
   {
+    name: 'Debt',
+    children: ['Loan Payment', 'Credit Card Payment']
+  },
+  {
     name: 'Shopping',
     children: ['Fashion', 'Gadgets', 'Home Goods', 'Hobbies']
   },
