@@ -162,7 +162,7 @@ export default function ReceiptDetailPage({
     }
   }
 
-  function handleNotDuplicate() {
+  function handleCancelDuplicateReview() {
     setPendingDuplicate(null);
     setPendingTransaction(null);
     setCreatingTransaction(false);
@@ -341,7 +341,7 @@ export default function ReceiptDetailPage({
                 <p className="section-kicker">Possible duplicate</p>
                 <h2 id="receipt-duplicate-title">Review matching transaction</h2>
               </div>
-              <button className="icon-button" aria-label="Close duplicate review" onClick={handleNotDuplicate}>x</button>
+              <button className="icon-button" aria-label="Close duplicate review" onClick={handleCancelDuplicateReview}>x</button>
             </div>
             <p className="muted-copy">{pendingDuplicate.message}</p>
             <div className="modal-actions">
@@ -349,10 +349,10 @@ export default function ReceiptDetailPage({
                 Link as same transaction
               </button>
               <button className="secondary-button" disabled={creatingTransaction} onClick={handleKeepBoth} type="button">
-                Keep both
+                Keep Both
               </button>
-              <button className="secondary-button" disabled={creatingTransaction} onClick={handleNotDuplicate} type="button">
-                Not a duplicate
+              <button className="secondary-button" disabled={creatingTransaction} onClick={handleCancelDuplicateReview} type="button">
+                Cancel
               </button>
             </div>
           </section>
